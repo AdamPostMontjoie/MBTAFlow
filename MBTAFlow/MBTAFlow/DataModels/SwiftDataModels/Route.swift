@@ -1,0 +1,24 @@
+//
+//  Route.swift
+//  MBTAFlow
+//
+//  Created by Adam Post on 5/30/26.
+//
+
+import Foundation
+import SwiftData
+
+@Model
+final class Route{
+    var stops: [Stop]
+    var name: String
+    var routeID: UUID
+
+    init(routeId: UUID, name: String, stops: [Stop])
+    {
+        self.routeID = routeId
+        self.name = name
+        self.stops = stops
+    }
+    
+}

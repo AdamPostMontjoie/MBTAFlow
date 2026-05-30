@@ -17,10 +17,10 @@ struct CreateRouteView: View {
         NavigationStack {
             Form {
                 Section("Route") {
-                    LabeledContent("Route name", value: store.routeName)
-                    LabeledContent("Starting stop", value: store.startingStop)
-                    LabeledContent("Ending stop", value: store.endingStop)
-                    LabeledContent("Departure time", value: store.departureTime)
+             //       LabeledContent("Route name", value: store.routeName)
+               //     LabeledContent("Starting stop", value: store.startingStop)
+                 //   LabeledContent("Ending stop", value: store.endingStop)
+                   // LabeledContent("Departure time", value: store.departureTime)
                 }
             }
             .navigationTitle("Create Route")
