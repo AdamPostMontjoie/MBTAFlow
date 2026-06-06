@@ -16,19 +16,57 @@ struct SelectorFeature {
         var userRoutes: IdentifiedArrayOf<RouteStruct> = [
             RouteStruct(
                 stops: [
-                    Stop(stopName: "Alewife", longitude: "-71.1429", latitude: "42.3954", lastStop: false, address: "123 Seasame Street"),
-                    Stop(stopName: "South Station", longitude: "-71.0552", latitude: "42.3523", lastStop: true,address: "123 Seasame Street")
+                    Stop(
+                        id: UUID(),
+                        mbtaStopId: "place-alfcl",
+                        mbtaRouteId: "Red",
+                        stopName: "Alewife",
+                        longitude: -71.1429,
+                        latitude: 42.3954,
+                        lastStop: false,
+                        address: "123 Seasame Street"
+                    ),
+                    Stop(
+                        id: UUID(),
+                        mbtaStopId: "place-sstat",
+                        mbtaRouteId: "Red",
+                        stopName: "South Station",
+                        longitude: -71.0552,
+                        latitude: 42.3523,
+                        lastStop: true,
+                        address: "123 Seasame Street"
+                    )
                 ],
-                routeId: UUID(),
+                id: UUID(),
+                mbtaRouteId: "Red",
                 name: "Morning Red Line",
                 timeStamp: Date()
             ),
             RouteStruct(
                 stops: [
-                    Stop(stopName: "Oak Grove", longitude: "-71.0711", latitude: "42.4367", lastStop: false,address: "123 Seasame Street"),
-                    Stop(stopName: "Back Bay", longitude: "-71.0757", latitude: "42.3473", lastStop: true,address: "123 Seasame Street")
+                    Stop(
+                        id: UUID(),
+                        mbtaStopId: "place-ogmnl",
+                        mbtaRouteId: "Orange",
+                        stopName: "Oak Grove",
+                        longitude: -71.0711,
+                        latitude: 42.4367,
+                        lastStop: false,
+                        address: "123 Seasame Street"
+                    ),
+                    Stop(
+                        id: UUID(),
+                        mbtaStopId: "place-bbsta",
+                        mbtaRouteId: "Orange",
+                        stopName: "Back Bay",
+                        longitude: -71.0757,
+                        latitude: 42.3473,
+                        lastStop: true,
+                        address: "123 Seasame Street"
+                    )
                 ],
-                routeId: UUID(),
+                id: UUID(),
+                mbtaRouteId: "Orange",
                 name: "Orange Line Commute",
                 timeStamp: Date()
             )

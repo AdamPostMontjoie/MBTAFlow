@@ -48,7 +48,7 @@ func reviewHttpResponse(_ response: URLResponse, _ data: Data) throws {
     case 429:
         throw MBTAError.rateLimited
     default:
-        // Catch-all for 500 Internal Server Error, 503 Service Unavailable, etc.
+        // 500 errors
         throw MBTAError.serverError(httpResponse.statusCode)
     }
 }
@@ -103,7 +103,7 @@ extension MBTAClient:DependencyKey {
         //this will be called immediately if red line, etc, but after if it's green line. both use routes endpoint
        
         fetchDirections: { routeId in
-                    // If the user selected Blue Line, routeId is "Blue"
+                    // If the user selected Blue Line, routeId is "Blue or sum shit"
                     guard let url = URL(string: "\(header)routes?filter[id]=\(routeId)&fields[route]=direction_names,direction_destinations") else {
                         throw URLError(.badURL)
                     }
@@ -131,7 +131,6 @@ extension MBTAClient:DependencyKey {
                                 )
                             }
                         }
-                        
                         // Return an array of TransitDirection directly to the Reducer
                         return mappedDirections
                     } catch {

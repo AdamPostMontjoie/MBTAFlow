@@ -43,7 +43,7 @@ struct RouteReviewFeature {
                 return .send(.delegate(.updateRoute(state.route)))
             case .deleteRouteButtonTapped:
                 //pop from stack
-                return .send(.delegate(.deleteRoute(state.route.routeId)))
+                return .send(.delegate(.deleteRoute(state.route.id)))
             case let .stops(.element(id: childId, action: .delegate(.deleteStop))):
                 state.route.stops.removeAll { $0.id == childId }
                 return .send(.delegate(.updateRoute(state.route)))

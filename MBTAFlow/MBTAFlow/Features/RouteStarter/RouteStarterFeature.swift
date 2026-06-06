@@ -28,13 +28,19 @@ struct RouteStarterFeature {
         case onCreateRouteDismissed
         case routeSelector(SelectorFeature.Action)
         
+        case beginRoute(RouteStruct)
+        case mbtaApiResponseReceived([String])
+        
+        //remove?
         case locationUpdateReceived(LocationData)
+        
         case apiFailed
         
     }
     
     @Dependency(\.locationClient) var locationClient
     @Dependency(\.liveActivityClient) var liveActivityClient
+    @Dependency(\.mbtaClient) var mbtaClient
     var body: some ReducerOf<Self> {
         Scope(state: \.activeRouteDisplay, action: \.activeRouteDisplay) {
             ActiveRouteDisplayFeature()
@@ -56,20 +62,57 @@ struct RouteStarterFeature {
                 return .none
             //this starts the route from inside the app, most of the logic is kicked off here
             case let .routeSelector(.delegate(.startRoute(id))):
-                state.isActiveRoutePresented = true
+                
+                //feels like a useless guard
                 guard let selectedRoute = state.routeSelector.userRoutes.first(where: { $0.id == id}) else {
                     return .none
                 }
-                state.activeRoute = RouteState(route:selectedRoute)
+                
+                return .send(.beginRoute(selectedRoute))
+                
+                
+            // starts the route
+            case let .beginRoute(route):
+                state.isActiveRoutePresented = true
+                state.activeRoute = RouteState(route:route)
+                guard let firstStop = route.stops.first else {
+                    //this should never happen
+                    return .none
+                }
+                
                 return .run { send in
-                    // Start the Live Activity widget
-                    await liveActivityClient.startActivity(selectedRoute)
+                    // Fire the API call for the first stop
+                    do {
+                        let times = try await mbtaClient.fetchTransitTimes(firstStop)
+                        // Send the data back into the reducer
+                        await send(.mbtaApiResponseReceived(times))
+            
+                    } catch {
+                        await send(.apiFailed)
+                    }
                     
-                    // Listen to the GPS stream
+                    // Start the GPS (Turn on the faucet)
+                    try? await locationClient.startMonitoring(firstStop)
+                    
+                    // Listen to the GPS (Wait at the pipe)
+                    // This loop runs infinitely in the background until the effect is cancelled
                     for await location in await locationClient.locationStream() {
                         await send(.locationUpdateReceived(location))
                     }
                 }
+            case let .mbtaApiResponseReceived(upcomingTimes):
+                // 1. Mutate the state safely
+                state.activeRoute?.currentStop.nextTimes = upcomingTimes
+                
+                // 2. Now that the state has real times, launch the Lock Screen widget!
+                if let activeRoute = state.activeRoute {
+                    return .run { _ in
+                        await liveActivityClient.startActivity(activeRoute.route)
+                    }
+                }
+                return .none
+                
+                
             //this will update both the app state and the live activity when something changes
             //this comes from core location, so boundary has been triggered
             case let .locationUpdateReceived(newLocation):

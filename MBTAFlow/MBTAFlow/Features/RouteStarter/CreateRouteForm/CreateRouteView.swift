@@ -91,11 +91,11 @@ struct CreateRouteView: View {
                                 }
                             }
                         )) {
-                            Text("Select a branch").tag(String?.none)
+                            Text("Select a branch").tag(TransitBranch?.none)
                             // Loop through the array in y.disabled(store.selectedBranch != nil)our state
                             ForEach(store.branchOptions, id: \.self) { branch in
                                 // type.rawValue outputs the string ("MBTA Bus", "Red Line", etc.)
-                                Text(branch).tag(String?.some(branch))
+                                Text(branch.displayName).tag(TransitBranch?.some(branch))
                             }
                         }.disabled(store.selectedBranch != nil)
                     }
@@ -127,16 +127,16 @@ struct CreateRouteView: View {
                             set: { newValue in
                                 // When the user picks an option, explicitly send your action
                                 if let newValue {
-                                    store.send(.directionSelected(newValue, store.routeId ?? ""))
+                                    store.send(.directionSelected(newValue, store.mbtaRouteId ?? ""))
                                 }
                             }
                         )) {
                             // Default empty state because selectedType is optional
-                            Text("Select a direction").tag(String?.none)
+                            Text("Select a direction").tag(Int?.none)
                             // Loop through the array in your state
                             ForEach(store.directionOptions, id: \.self) { direction in
                                 
-                                Text(direction).tag(String?.some(direction))
+                                Text("\(direction)").tag(Int?.some(direction))
                             }
                         }.disabled(store.selectedDirection != nil)
                     }
@@ -145,16 +145,17 @@ struct CreateRouteView: View {
                 if store.currentFormStep == .selectStop || store.selectedStop != nil {
                     Section(header: Text("Stop")) {
                         Picker("Stop", selection: Binding(
-                            get: { store.selectedStop }, // Fixed binding
+                            get: { store.selectedStop?.id },
                             set: { newValue in
-                                if let newValue {
-                                    store.send(.stopSelected(newValue))
+                                if let newValue,
+                                   let stop = store.stopOptions.first(where: { $0.id == newValue }) {
+                                    store.send(.stopSelected(stop))
                                 }
                             }
                         )) {
-                            Text("Select a stop").tag(String?.none)
-                            ForEach(store.stopOptions, id: \.self) { stop in
-                                Text(stop).tag(String?.some(stop))
+                            Text("Select a stop").tag(UUID?.none)
+                            ForEach(store.stopOptions, id: \.id) { stop in
+                                Text(stop.stopName).tag(UUID?.some(stop.id))
                             }
                         } //.disabled(store.selectedStop != nil)
                     }

@@ -8,8 +8,7 @@
 import ComposableArchitecture
 import CoreLocation
 
-//will probably need this to set the corelocation boundaries for each stop
-//interact with database client? interact with extension
+//this will use core location monitoring
 
 struct LocationData: Equatable {
     var location = "location"
@@ -18,7 +17,7 @@ struct LocationData: Equatable {
 struct LocationClient {
     var currentLocation: @Sendable () async throws -> LocationData
     var locationStream: @Sendable () async -> AsyncStream<LocationData>
-    var startMonitoring: @Sendable (RouteStruct) async throws -> Void
+    var startMonitoring: @Sendable (Stop) async throws -> Void
     var stopMonitoring: @Sendable () async throws -> Void
 }
 

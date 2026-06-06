@@ -7,6 +7,7 @@
 
 import ComposableArchitecture
 import Dependencies
+import Foundation
 
 @Reducer
 struct CreateRouteFeature {
@@ -15,17 +16,19 @@ struct CreateRouteFeature {
         var typeOptions: [TransitType] = TransitType.allCases
         var selectedType: TransitType?
         //TODO define
-        var branchOptions: [String] = ["Green line branch example"]
-        var selectedBranch: String?
+        var branchOptions: [TransitBranch] = [] // we only want to display the names but we can hold all
+        var selectedBranch: TransitBranch?
         //TODO define
-        var directionOptions: [String] = ["Northbound", "Southbound"] //whatever direction api returns
-        var selectedDirection: String?
+        var directionOptions: [Int] = [0,1] //we are going to need to pass through the names
+        var selectedDirection: Int?
         //TODO define
-        var stopOptions: [String] = ["Stop 1", "Stop 2"]
-        var selectedStop: String?
+        var stopOptions: [Stop] = []
+        var selectedStop: Stop?
         
-        var routeId: String?
+        var mbtaRouteId: String?
         var currentFormStep:FormStep = .selectType
+        
+        @Presents var destination:Destination.State?
     }
     
     //the loaded features will also need to set the options, ommitting for now
@@ -34,11 +37,11 @@ struct CreateRouteFeature {
         case createButtonTapped
         case transitTypeSelected(TransitType)
         case branchesLoaded(String)
-        case branchSelected(String)
-        case directionsLoaded(String)
-        case directionSelected(String, String)
-        case stopsLoaded(String)
-        case stopSelected(String)
+        case branchSelected(TransitBranch)
+        case directionsLoaded([TransitDirection])
+        case directionSelected(Int, String)
+        case stopsLoaded([Stop])
+        case stopSelected(Stop)
         
         case resetTypeSelection
         case resetBranchSelection
@@ -46,9 +49,16 @@ struct CreateRouteFeature {
         //we don't have a stop reset because we don't need to lock stop selection
         case addStopButtonTapped
         case saveRouteButtonTapped //triggers alert for confirmation, other action needed
- 
-        case apiFailure //alert
+        case apiFailure
+        
+        case destination(PresentationAction<Destination.Action>)
+        enum Alert: Equatable {
+            case apiFailure //alert
+        }
+       
+        
     }
+    
     @Dependency(\.mbtaClient) var mbtaClient: MBTAClient
     @Dependency(\.databaseClient) var databaseClient: DatabaseClient
     var body: some ReducerOf<Self> {
@@ -59,15 +69,15 @@ struct CreateRouteFeature {
             case let .transitTypeSelected(type):
                 state.selectedType = type
                 switch type.apiStrategy {
-                    case let .skipToDirection(routeId):
+                    case let .skipToDirection(mbtaRouteId):
                         // (Red Line Path)
                         // We already know the ID. Save it, and jump the UI straight to Step 3.
-                        state.routeId = routeId
+                        state.mbtaRouteId = mbtaRouteId
                         state.currentFormStep = .selectDirection
                         //fetch direction
                         return .run { send in
                             do {
-                                let directions = try await mbtaClient.fetchDirections(routeId)
+                                let directions = try await mbtaClient.fetchDirections(mbtaRouteId)
                                 await send(.directionsLoaded(directions))
                             }
                             catch {
@@ -94,23 +104,28 @@ struct CreateRouteFeature {
                 return .none
             case let .branchSelected(branch):
                 state.selectedBranch = branch
-                return .run { send in
-                    do {
-                        let directions = try await mbtaClient.fetchDirections(branch)
-                        await send(.directionsLoaded(directions))
+                if state.selectedBranch?.directions == nil {
+                    return .run { send in
+                        do {
+                            let directions = try await mbtaClient.fetchDirections(branch.id)
+                            await send(.directionsLoaded(directions))
+                        }
+                        catch {
+                            await send(.apiFailure)
+                        }
                     }
-                    catch {
-                        await send(.apiFailure)
-                    }
+
+                } else {
+                    return .send(.directionsLoaded(state.selectedBranch!.directions))
                 }
             case .directionsLoaded:
                 state.currentFormStep = .selectDirection
                 return .none
-            case let .directionSelected(direction, routeId):
+            case let .directionSelected(direction, mbtaRouteId):
                 state.selectedDirection = direction
                 return .run { send in
                     do {
-                        let stops = try await mbtaClient.fetchStops(direction, routeId)
+                        let stops = try await mbtaClient.fetchStops(direction, mbtaRouteId)
                         await send(.stopsLoaded(stops))
                     }
                     catch {
@@ -128,7 +143,7 @@ struct CreateRouteFeature {
                 state.selectedBranch = nil
                 state.selectedDirection = nil
                 state.selectedStop = nil
-                state.routeId = nil
+                state.mbtaRouteId = nil
                 
                 state.currentFormStep = .selectType
                 
@@ -137,14 +152,14 @@ struct CreateRouteFeature {
                 state.selectedBranch = nil
                 state.selectedDirection = nil
                 state.selectedStop = nil
-                state.routeId = nil
+                state.mbtaRouteId = nil
                 
                 state.currentFormStep = .selectBranch
                 return .none
             case .resetDirectionSelection:
                 state.selectedDirection = nil
                 state.selectedStop = nil
-                state.routeId = nil
+                state.mbtaRouteId = nil
                 
                 state.currentFormStep = .selectDirection
                 return .none
@@ -155,16 +170,37 @@ struct CreateRouteFeature {
                 //triggers alert for save confirmation
                 return .none
             case .apiFailure:
-                //this will show the failure alert, depends on which one failed.
+                state.destination = .alert(.apiFailure())
+                return .none
+            case .destination:
                 return .none
             }
         }
+        .ifLet(\.$destination, action: \.destination)
     }
 }
+
+extension CreateRouteFeature {
+    @Reducer
+    enum Destination {
+        case alert(AlertState<CreateRouteFeature.Action.Alert>)
+    }
+}
+
+extension CreateRouteFeature.Destination.State: Equatable {}
+extension CreateRouteFeature.Destination.Action: Equatable {}
 
 enum FormStep: Equatable {
     case selectType
     case selectBranch
     case selectDirection
     case selectStop
+}
+
+extension AlertState where Action == CreateRouteFeature.Action.Alert {
+    static func apiFailure() -> Self {
+        Self {
+            TextState("Something went wrong")
+        }
+    }
 }
