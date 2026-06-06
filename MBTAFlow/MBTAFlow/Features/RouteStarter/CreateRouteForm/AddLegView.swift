@@ -137,7 +137,9 @@ struct AddLegView: View {
             Section {
                 HStack {
                     Button("Add Another Leg") {
-                        store.send(.addLegButtonTapped)
+                        if let currentLeg = store.currentLeg {
+                            store.send(.addLegButtonTapped(currentLeg))
+                        }
                     }
                     .buttonStyle(.bordered)
                     .tint(.blue)
@@ -145,7 +147,9 @@ struct AddLegView: View {
                     Spacer()
 
                     Button("Complete Route") {
-                        store.send(.saveRouteButtonTapped)
+                        if let currentLeg = store.currentLeg {
+                            store.send(.saveRouteButtonTapped(currentLeg))
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)

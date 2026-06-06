@@ -55,7 +55,7 @@ struct CreateRouteFeature {
             switch action {
                 
             // 1. Catching the completed leg from the child form
-            case let .addLeg(.delegate(.submitLeg(newLeg))):
+            case let .addLeg(.delegate(.addAnotherLeg(newLeg))):
                 // Save the leg to the parent array
                 state.completedLegs.append(newLeg)
                 
@@ -63,7 +63,11 @@ struct CreateRouteFeature {
                 // SwiftUI will instantly reset the form back to step 1.
                 state.addLeg = AddLegFeature.State()
                 return .none
-                
+            case let .addLeg(.delegate(.completeRoute(lastLeg))):
+                //we instead want to launch alert from here.
+                state.completedLegs.append(lastLeg)
+                state.destination = .alert(.saveRoute(legCount:state.completedLegs.count))
+                return .none
             // 2. Dismissal Logic
             case .cancelButtonTapped:
                 // If they haven't done anything, just close it

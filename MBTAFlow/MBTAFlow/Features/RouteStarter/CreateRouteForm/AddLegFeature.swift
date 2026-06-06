@@ -32,6 +32,8 @@ struct AddLegFeature {
         var mbtaRouteId: String?
         var currentFormStep:FormStep = .selectType
         
+        var currentLeg:Leg?
+        
         @Presents var destination:Destination.State?
     }
     
@@ -48,12 +50,14 @@ struct AddLegFeature {
         case startStopSelected(Stop)
         case endStopSelected(Stop)
         
+        case buildLeg
+        
         case resetTypeSelection
         case resetBranchSelection
         case resetDirectionSelection
         //we don't have a stop reset because we don't need to lock stop selection
-        case addLegButtonTapped
-        case saveRouteButtonTapped //triggers alert for confirmation, other action needed
+        case addLegButtonTapped(Leg)
+        case saveRouteButtonTapped(Leg) //triggers alert for confirmation, other action needed
         case apiFailure
         
         case destination(PresentationAction<Destination.Action>)
@@ -62,7 +66,8 @@ struct AddLegFeature {
         }
         case delegate(Delegate)
         enum Delegate: Equatable {
-            case submitLeg(Leg)
+            case completeRoute(Leg)
+            case addAnotherLeg(Leg)
         }
         
     }
@@ -157,6 +162,20 @@ struct AddLegFeature {
             case let .endStopSelected(stop):
                 state.selectedEndStop = stop
                 
+                return .send(.buildLeg)
+            case .buildLeg:
+                guard let startStop = state.selectedStartStop,
+                      let endStop = state.selectedEndStop,
+                      let mbtaRouteId = state.mbtaRouteId,
+                      let transitType = state.selectedType else {
+                    return .none
+                }
+                state.currentLeg = Leg(
+                    startStop: startStop,
+                    endStop: endStop,
+                    mbtaRouteId: mbtaRouteId,
+                    transitType: transitType
+                )
                 return .none
             case .resetTypeSelection:
                 state.selectedType = nil
@@ -186,12 +205,17 @@ struct AddLegFeature {
                 
                 state.currentFormStep = .selectDirection
                 return .none
-            case .addLegButtonTapped:
-                //wipes form, adds all info to stop struct in state array
-                return .none
-            case .saveRouteButtonTapped:
+            case let .addLegButtonTapped(currentLeg):
+                //hands the leg to the parent, they will wipe state
+                //we don't need to here (I think) we will include a back option if not first leg
+                
+                return .send(.delegate(.addAnotherLeg(currentLeg)))
+            case let .saveRouteButtonTapped(lastLeg):
                 //triggers alert for save confirmation
-                return .none
+                
+                //if the user decides to keep adding more, we will set the isLastStop to be false again
+                
+                return .send(.delegate(.completeRoute(lastLeg)))
             case .apiFailure:
                 state.destination = .alert(.apiFailure())
                 return .none
@@ -205,6 +229,7 @@ struct AddLegFeature {
         .ifLet(\.$destination, action: \.destination)
     }
 }
+
 
 extension AddLegFeature {
     @Reducer

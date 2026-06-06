@@ -30,30 +30,29 @@ struct CreateRouteView: View {
                     )
                 )
             }
-            .navigationTitle(store.completedLegs.isEmpty ? "Create Route" : "Add Leg")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                // Dismiss Button
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        store.send(.cancelButtonTapped)
-                    } label: {
-                        Text("Cancel")
-                    }
-                }
-                
-                // Global Save Button
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        store.send(.saveRouteButtonTapped)
-                    } label: {
-                        Text("Save")
-                            .bold()
-                    }
-                    // Prevent saving an empty route
-                    .disabled(store.completedLegs.isEmpty)
-                }
-            }
+//            .toolbar {
+//                // Dismiss Button
+//                ToolbarItem(placement: .topBarLeading) {
+//                    Button {
+//                        store.send(.cancelButtonTapped)
+//                    } label: {
+//                        Text("Cancel")
+//                    }
+//                }
+//                
+//                // Global Save Button
+//                ToolbarItem(placement: .topBarTrailing) {
+//                    Button {
+//                        store.send(.saveRouteButtonTapped)
+//                    } label: {
+//                        Text("Save")
+//                            .bold()
+//                    }
+//                    // Prevent saving an empty route
+//                    .disabled(store.completedLegs.isEmpty)
+//                }
+//            }
             // TCA handles mounting the alerts generated in the reducer
             .alert($store.scope(state: \.destination?.alert, action: \.destination.alert))
         }
