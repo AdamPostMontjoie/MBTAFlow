@@ -10,8 +10,9 @@ import Foundation
 
 struct DatabaseClient {
     var saveRoute: @Sendable (RouteStruct) async throws -> Void
-    var editRouteName: @Sendable (String) async throws -> Void
+    var updateRoute: @Sendable (RouteStruct) async throws -> Void
     var deleteRoute: @Sendable (UUID) async throws -> Void
+    var fetchSavedRoutes: @Sendable () async throws -> [RouteStruct]
 }
 
 extension DatabaseClient: DependencyKey {
@@ -19,11 +20,14 @@ extension DatabaseClient: DependencyKey {
         saveRoute: { route in
             //save ts to swiftdata
         },
-        editRouteName: { newName in
-            
+        updateRoute:  {newRoute in
+            //take the uuid and overwrite whatever currently has it
         },
         deleteRoute: { routeId in
-            
+            //remove from swiftdata
+        },
+        fetchSavedRoutes: {
+            return []
         }
     )
 
