@@ -25,12 +25,13 @@ struct RouteStarterFeature {
         case activeRouteDisplay(ActiveRouteDisplayFeature.Action)
         case createRoute(CreateRouteFeature.Action)
         case onCreateButtonTapped
-        case onCreateRouteDismissed
+        case onCreateRouteDismissed(Bool)
         case routeSelector(SelectorFeature.Action)
         
         case beginRoute(RouteStruct)
         case mbtaApiResponseReceived([String])
         
+        case refreshRoutes
         //remove?
         case locationUpdateReceived(LocationData)
         
@@ -59,12 +60,19 @@ struct RouteStarterFeature {
                 state.isCreateRoutePresented = true
                 return .none
             case .createRoute(.delegate(.routeSaved)):
-                return .send(.onCreateRouteDismissed)
+                return .send(.onCreateRouteDismissed(true))
             case .createRoute(.delegate(.dismiss)):
-                return .send(.onCreateRouteDismissed)
-            case .onCreateRouteDismissed:
+                return .send(.onCreateRouteDismissed(false))
+            case let .onCreateRouteDismissed(refresh):
                 state.isCreateRoutePresented = false
                 state.createRoute = CreateRouteFeature.State()
+                if refresh {
+                    return .send(.routeSelector(.fetchRoutesFromDisk))
+                } else {
+                    return .none
+                }
+                
+            case .refreshRoutes:
                 return .none
             //this starts the route from inside the app, most of the logic is kicked off here
             case let .routeSelector(.delegate(.startRoute(id))):

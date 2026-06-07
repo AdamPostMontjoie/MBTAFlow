@@ -47,7 +47,7 @@ struct RouteStarterView: View {
                 get: { store.isCreateRoutePresented },
                 set: { isPresented in
                     if !isPresented {
-                        store.send(.onCreateRouteDismissed)
+                        store.send(.onCreateRouteDismissed(false))
                     }
                 }
             )

@@ -23,12 +23,24 @@ struct SelectorView: View {
                     NavigationLink(state: RouteReviewFeature.State(route: userRoute)) {
                         Text(userRoute.name)
                     }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            store.send(.deleteButtonTapped(userRoute.id))
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(.red)
+                    }
                     
                 }
             }
             .listStyle(.plain)
         } destination: { store in
             RouteReviewView(store: store)
+        }
+        .alert($store.scope(state: \.destination?.alert, action: \.destination.alert))
+        .onAppear {
+            store.send(.fetchRoutesFromDisk)
         }
     }
 }
