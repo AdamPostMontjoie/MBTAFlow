@@ -21,7 +21,27 @@ struct SelectorView: View {
             List {
                 ForEach(store.userRoutes) { userRoute in
                     NavigationLink(state: RouteReviewFeature.State(route: userRoute)) {
-                        Text(userRoute.name)
+                        HStack {
+                            Text(userRoute.name)
+
+                            Spacer()
+
+                            Button {
+                                store.send(.startButtonTapped(userRoute.id))
+                            } label: {
+                                Text("Start")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+                        }
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            store.send(.deleteButtonTapped(userRoute.id))
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(.red)
                     }
                     
                 }
@@ -29,6 +49,10 @@ struct SelectorView: View {
             .listStyle(.plain)
         } destination: { store in
             RouteReviewView(store: store)
+        }
+        .alert($store.scope(state: \.destination?.alert, action: \.destination.alert))
+        .onAppear {
+            store.send(.fetchRoutesFromDisk)
         }
     }
 }

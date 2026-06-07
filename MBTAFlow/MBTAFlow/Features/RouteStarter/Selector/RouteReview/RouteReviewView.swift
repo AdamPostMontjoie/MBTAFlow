@@ -12,25 +12,20 @@ struct RouteReviewView: View {
     @Bindable var store: StoreOf<RouteReviewFeature>
 
     var body: some View {
-        //make this a header
         List {
-            // Header for the Route Name
             Section {
                 Text(store.route.name)
                     .font(.headline)
             }
-            
-            // The Stops List
-            Section(header: Text("Stops")) {
-                // Point the id directly to the unique string variable inside your Stop struct
+
+            Section(header: Text("Legs")) {
                 ForEach(
-                    store.scope(state: \.stops, action: \.stops)
+                    store.scope(state: \.legRows, action: \.legRows)
                 ) { childStore in
-                    StopRowView(store: childStore)
+                    LegRowView(store: childStore)
                 }
             }
         }
         .navigationTitle("Review Route")
     }
 }
-

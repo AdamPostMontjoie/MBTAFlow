@@ -10,111 +10,122 @@ import Foundation
 
 @Reducer
 struct SelectorFeature {
-    
     @ObservableState
     struct State: Equatable {
-        var userRoutes: IdentifiedArrayOf<RouteStruct> = [
-            RouteStruct(
-                stops: [
-                    Stop(
-                        id: UUID(),
-                        mbtaStopId: "place-alfcl",
-                        mbtaRouteId: "Red",
-                        stopName: "Alewife",
-                        longitude: -71.1429,
-                        latitude: 42.3954,
-                        lastStop: false,
-                        address: "123 Seasame Street"
-                    ),
-                    Stop(
-                        id: UUID(),
-                        mbtaStopId: "place-sstat",
-                        mbtaRouteId: "Red",
-                        stopName: "South Station",
-                        longitude: -71.0552,
-                        latitude: 42.3523,
-                        lastStop: true,
-                        address: "123 Seasame Street"
-                    )
-                ],
-                id: UUID(),
-                mbtaRouteId: "Red",
-                name: "Morning Red Line",
-                timeStamp: Date()
-            ),
-            RouteStruct(
-                stops: [
-                    Stop(
-                        id: UUID(),
-                        mbtaStopId: "place-ogmnl",
-                        mbtaRouteId: "Orange",
-                        stopName: "Oak Grove",
-                        longitude: -71.0711,
-                        latitude: 42.4367,
-                        lastStop: false,
-                        address: "123 Seasame Street"
-                    ),
-                    Stop(
-                        id: UUID(),
-                        mbtaStopId: "place-bbsta",
-                        mbtaRouteId: "Orange",
-                        stopName: "Back Bay",
-                        longitude: -71.0757,
-                        latitude: 42.3473,
-                        lastStop: true,
-                        address: "123 Seasame Street"
-                    )
-                ],
-                id: UUID(),
-                mbtaRouteId: "Orange",
-                name: "Orange Line Commute",
-                timeStamp: Date()
-            )
-        ]
+        var userRoutes: IdentifiedArrayOf<RouteStruct> = []
         var path = StackState<RouteReviewFeature.State>()
+        @Presents var destination: Destination.State? // Added
     }
-    
+
     enum Action: Equatable {
         case selected
         case path(StackAction<RouteReviewFeature.State, RouteReviewFeature.Action>)
-        case alert
+        case fetchRoutesFromDisk
+        case deleteRouteFromDisk(UUID)
+        case routesFetched([RouteStruct])
+        case fetchRoutesFailed
         //we need to implement the deletion and editing here and in the routereviewfeature
         //both behavior and the alerts should be the same
         //modularize?
-        case deleteButtonTapped
+        case deleteButtonTapped(UUID)
         case editButtonTapped
         case startButtonTapped(UUID)
         case delegate(Delegate)
-        enum Delegate:Equatable
-        {
+        case destination(PresentationAction<Destination.Action>)
+        enum Alert: Equatable {
+            case confirmDelete(UUID)
+        }
+        
+        enum Delegate: Equatable {
             case startRoute(UUID)
         }
     }
-    
+
     @Dependency(\.mbtaClient) var mbtaClient: MBTAClient
     @Dependency(\.databaseClient) var databaseClient: DatabaseClient
+
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .selected:
                 return .none
-            case let .startButtonTapped(id):
+
+            case .fetchRoutesFromDisk:
+                return .run { send in
+                    do {
+                        let routes = try await databaseClient.fetchSavedRoutes()
+                        await send(.routesFetched(routes))
+                    } catch {
+                        await send(.fetchRoutesFailed)
+                    }
+                }
+
+            case let .deleteRouteFromDisk(routeId):
+                return .run { send in
+                    do {
+                        try await databaseClient.deleteRoute(routeId)
+                        await send(.fetchRoutesFromDisk)
+                    } catch {
+                        await send(.fetchRoutesFailed)
+                    }
+                }
+
+            case let .routesFetched(routes):
+                state.userRoutes = IdentifiedArray(uniqueElements: routes)
+                return .none
+
+            case .fetchRoutesFailed:
+                return .none
+
+            case let .startButtonTapped(route):
                 
-                return .send(.delegate(.startRoute(id)))
+                return .send(.delegate(.startRoute(route)))
+
             case .editButtonTapped:
                 return .none
-            case .deleteButtonTapped:
+
+            case let .deleteButtonTapped(routeId):
+                state.destination = .alert(.confirmDelete(routeId: routeId))
                 return .none
-            case .path:
+
+            case let .destination(.presented(.alert(.confirmDelete(routeId)))):
+                return .send(.deleteRouteFromDisk(routeId))
+
+            case .destination, .path, .delegate:
                 return .none
-            case .alert:
-                return .none
-            case .delegate:
-                return .none
+
             }
         }
         .forEach(\.path, action: \.path) {
             RouteReviewFeature()
+        }
+        .ifLet(\.$destination, action: \.destination)
+    }
+}
+
+extension SelectorFeature {
+    @Reducer
+    enum Destination {
+        case alert(AlertState<SelectorFeature.Action.Alert>)
+    }
+}
+
+extension SelectorFeature.Destination.State: Equatable {}
+extension SelectorFeature.Destination.Action: Equatable {}
+
+extension AlertState where Action == SelectorFeature.Action.Alert {
+    static func confirmDelete(routeId: UUID) -> Self {
+        Self {
+            TextState("Delete Route?")
+        } actions: {
+            ButtonState(role: .destructive, action: .confirmDelete(routeId)) {
+                TextState("Delete")
+            }
+            ButtonState(role: .cancel) {
+                TextState("Cancel")
+            }
+        } message: {
+            TextState("Are you sure you want to permanently delete this route?")
         }
     }
 }
