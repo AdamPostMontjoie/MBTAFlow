@@ -42,14 +42,55 @@ extension DatabaseClient: DependencyKey {
             context.insert(savedRoute)
             try context.save()
         },
-        updateRoute:  {newRoute in
-            //take the uuid and overwrite whatever currently has it
+        updateRoute: { newRoute in
+            let container = try ModelContainer(for: Route.self)
+            let context = ModelContext(container)
+            let routeId = newRoute.id
+            let descriptor = FetchDescriptor<Route>(
+                predicate: #Predicate { route in
+                    route.localRouteId == routeId
+                }
+            )
+
+            guard let savedRoute = try context.fetch(descriptor).first else {
+                return
+            }
+
+            savedRoute.name = newRoute.name
+            savedRoute.legs = newRoute.legs
+            savedRoute.timeStamp = newRoute.timeStamp
+            try context.save()
         },
-        deleteRoute: { routeId in
-            //remove from swiftdata
+        deleteRoute: { localRouteId in
+            let container = try ModelContainer(for: Route.self)
+            let context = ModelContext(container)
+            let descriptor = FetchDescriptor<Route>(
+                predicate: #Predicate { route in
+                    route.localRouteId == localRouteId
+                }
+            )
+
+            for savedRoute in try context.fetch(descriptor) {
+                context.delete(savedRoute)
+            }
+
+            try context.save()
         },
         fetchSavedRoutes: {
-            return []
+            let container = try ModelContainer(for: Route.self)
+            let context = ModelContext(container)
+            let descriptor = FetchDescriptor<Route>(
+                sortBy: [SortDescriptor(\.timeStamp, order: .reverse)]
+            )
+
+            return try context.fetch(descriptor).map { savedRoute in
+                RouteStruct(
+                    legs: savedRoute.legs,
+                    id: savedRoute.localRouteId,
+                    name: savedRoute.name,
+                    timeStamp: savedRoute.timeStamp
+                )
+            }
         }
     )
 

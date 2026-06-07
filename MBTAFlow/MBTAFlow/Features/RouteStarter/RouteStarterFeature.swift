@@ -59,10 +59,12 @@ struct RouteStarterFeature {
                 state.isCreateRoutePresented = true
                 return .none
             case .createRoute(.delegate(.routeSaved)):
-                state.isCreateRoutePresented = false
-                return .none
+                return .send(.onCreateRouteDismissed)
+            case .createRoute(.delegate(.dismiss)):
+                return .send(.onCreateRouteDismissed)
             case .onCreateRouteDismissed:
-                //this handles the x out
+                state.isCreateRoutePresented = false
+                state.createRoute = CreateRouteFeature.State()
                 return .none
             //this starts the route from inside the app, most of the logic is kicked off here
             case let .routeSelector(.delegate(.startRoute(id))):

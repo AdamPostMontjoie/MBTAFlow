@@ -57,4 +57,5 @@ struct CreateRouteView: View {
             .alert($store.scope(state: \.destination?.alert, action: \.destination.alert))
         }
     }
+
 }

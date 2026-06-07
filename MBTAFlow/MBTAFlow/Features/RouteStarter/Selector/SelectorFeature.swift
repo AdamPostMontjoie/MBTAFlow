@@ -70,6 +70,30 @@ struct SelectorFeature {
                         ),
                         mbtaRouteId: "Orange",
                         transitType: .orangeLine
+                    ),
+                    Leg(
+                        startStop: Stop(
+                            id: UUID(),
+                            mbtaStopId: "place-ogmnl",
+                            mbtaRouteId: "Orange",
+                            stopName: "Oak Grove",
+                            longitude: -71.0711,
+                            latitude: 42.4367,
+                            lastStop: false,
+                            address: "Washington St, Malden, MA"
+                        ),
+                        endStop: Stop(
+                            id: UUID(),
+                            mbtaStopId: "place-bbsta",
+                            mbtaRouteId: "Orange",
+                            stopName: "Back Bay",
+                            longitude: -71.0757,
+                            latitude: 42.3473,
+                            lastStop: true,
+                            address: "145 Dartmouth St, Boston, MA"
+                        ),
+                        mbtaRouteId: "Orange",
+                        transitType: .orangeLine
                     )
                 ],
                 id: UUID(),

@@ -58,6 +58,7 @@ struct RouteStarterView: View {
                     action: \.createRoute
                 )
             )
+            .interactiveDismissDisabled(true)
         }
     }
 }

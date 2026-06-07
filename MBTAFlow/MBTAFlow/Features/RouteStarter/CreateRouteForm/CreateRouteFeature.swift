@@ -25,17 +25,17 @@ struct CreateRouteFeature {
         // Child feature actions
         case addLeg(AddLegFeature.Action)
         
-        // Parent UI actions
-        case cancelButtonTapped
-        case saveRouteButtonTapped
-        
         // Alert actions
         case destination(PresentationAction<Destination.Action>)
+        
+        case resetForm
+        case saveFailed
         
         enum Alert: Equatable {
             case confirmDismiss
             case confirmSave
             case cancelSave
+            case saveFailed
         }
         
         // Communication back to RouteStarterFeature
@@ -70,28 +70,26 @@ struct CreateRouteFeature {
                 state.completedLegs.append(lastLeg)
                 state.destination = .alert(.saveRoute(legCount:state.completedLegs.count))
                 return .none
-            // 2. Dismissal Logic
-            case .cancelButtonTapped:
-                // If they haven't done anything, just close it
+            case .addLeg(.delegate(.requestDismissal)):
                 if state.completedLegs.isEmpty && state.addLeg.selectedType == nil {
                     return .send(.delegate(.dismiss))
                 } else {
-                    // If they have unsaved work, show the warning alert
                     state.destination = .alert(.confirmDismiss())
                     return .none
                 }
-                
-            // 3. Saving Logic
-            case .saveRouteButtonTapped:
-                // Optionally grab the active leg if they forgot to hit "add" before saving
-                // (You can implement logic here to validate state.addLeg and append it if it's finished)
-                
-                state.destination = .alert(.saveRoute(legCount:state.completedLegs.count))
+            case .resetForm:
+                state.completedLegs = []
+                state.addLeg = AddLegFeature.State()
                 return .none
+       
                 
             // Alert Confirmations
             case .destination(.presented(.alert(.confirmDismiss))):
-                return .send(.delegate(.dismiss))
+                
+                return .run { send in
+                    await send(.resetForm)
+                    await send(.delegate(.dismiss))
+                }
                 
             case .destination(.presented(.alert(.confirmSave))):
                 // handle database client
@@ -101,9 +99,10 @@ struct CreateRouteFeature {
                 return .run {[legs = state.completedLegs] send in
                     do {
                         try await databaseClient.saveRoute(legs)
+                        await send(.resetForm)
                         await send(.delegate(.routeSaved))
                     } catch {
-                        print("fuck")
+                        await send(.saveFailed)
                     }
                 }
                 
@@ -112,6 +111,9 @@ struct CreateRouteFeature {
                 if !state.completedLegs.isEmpty {
                     state.completedLegs.removeLast()
                 }
+                return .none
+            case .saveFailed:
+                state.destination = .alert(.saveFailed())
                 return .none
             case .addLeg, .destination, .delegate:
                 return .none
@@ -161,6 +163,17 @@ extension AlertState where Action == CreateRouteFeature.Action.Alert {
             }
         } message: {
             TextState("Save this route with \(legCount) \(legCount > 1 ? "segments" : "segment")")
+        }
+    }
+    static func saveFailed() -> Self {
+        Self {
+            TextState("Could Not Save Route")
+        } actions: {
+            ButtonState(role: .cancel) {
+                TextState("OK")
+            }
+        } message: {
+            TextState("Please try again.")
         }
     }
 }

@@ -24,8 +24,6 @@ struct LegRowFeature {
     enum Action: Equatable {}
 
     var body: some ReducerOf<Self> {
-        Reduce { _, _ in
-            .none
-        }
+        EmptyReducer()
     }
 }

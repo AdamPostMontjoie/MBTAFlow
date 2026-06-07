@@ -40,7 +40,7 @@ struct AddLegFeature {
     //the loaded features will also need to set the options, ommitting for now
     // we need to have an option to remove an entire selected stop from the stack.
     enum Action: Equatable {
-        case createButtonTapped
+
         case transitTypeSelected(TransitType)
         case branchesLoaded([TransitBranch])
         case branchSelected(TransitBranch)
@@ -59,6 +59,7 @@ struct AddLegFeature {
         //we don't have a stop reset because we don't need to lock stop selection
         case addLegButtonTapped
         case saveRouteButtonTapped //triggers alert for confirmation, other action needed
+        case closeButtonTapped
         case apiFailure
         
         case destination(PresentationAction<Destination.Action>)
@@ -69,6 +70,7 @@ struct AddLegFeature {
         enum Delegate: Equatable {
             case completeRoute(Leg)
             case addAnotherLeg(Leg)
+            case requestDismissal
         }
         
     }
@@ -78,8 +80,8 @@ struct AddLegFeature {
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
-            case .createButtonTapped:
-                return .none
+            case .closeButtonTapped:
+                return .send(.delegate(.requestDismissal))
             case let .transitTypeSelected(type):
                 state.selectedType = type
                 switch type.apiStrategy {

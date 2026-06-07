@@ -36,7 +36,7 @@ struct AddLegView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        dismiss()
+                        store.send(.closeButtonTapped)
                     } label: {
                         Image(systemName: "xmark")
                     }
@@ -87,7 +87,7 @@ struct AddLegView: View {
             Section(header: resetHeader(
                 title: "Direction",
                 isResetVisible: store.selectedDirection != nil,
-                action: .resetStartStopSelection
+                action: .resetDirectionSelection
             )) {
                 Picker("Direction", selection: directionSelection) {
                     Text("Select a direction").tag(TransitDirection?.none)
