@@ -33,7 +33,7 @@ struct RouteStarterFeature {
         
         case refreshRoutes
         //remove?
-        case locationUpdateReceived(LocationData)
+        case locationUpdateReceived(LocationEvent)
         
         case apiFailed
         
@@ -106,11 +106,11 @@ struct RouteStarterFeature {
                     }
                     
                     // Start the GPS (Turn on the faucet)
-                    try? await locationClient.startMonitoring(firstStop)
+                    var stream = try await locationClient.startMonitoring(route)
                     
                     // Listen to the GPS (Wait at the pipe)
                     // This loop runs infinitely in the background until the effect is cancelled
-                    for await location in await locationClient.locationStream() {
+                    for await location in stream{
                         await send(.locationUpdateReceived(location))
                     }
                 }

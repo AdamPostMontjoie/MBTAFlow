@@ -10,36 +10,50 @@ import CoreLocation
 
 //this will use core location monitoring
 
-struct LocationData: Equatable {
-    var location = "location"
+enum LocationEvent: Equatable {
+    case enteredStop(stopId: String)
+    case exitedStop(stopId: String)
+    case authorizationDenied
+    case monitoringFailed(stopId: String, error: locationError)
+}
+
+enum locationError:Error, Equatable {
+    case unknown
 }
 
 struct LocationClient {
-    var currentLocation: @Sendable () async throws -> LocationData
-    var locationStream: @Sendable () async -> AsyncStream<LocationData>
-    var startMonitoring: @Sendable (Stop) async throws -> Void
+    var startMonitoring: @Sendable (RouteStruct) async throws -> AsyncStream<LocationEvent>
     var stopMonitoring: @Sendable () async throws -> Void
+    
 }
+
+private actor LocationActor {
+    var manager: RegionManager?
+    
+    func start(route: RouteStruct) async -> AsyncStream<LocationEvent> {
+        let stops = route.legs.flatMap { [$0.startStop, $0.endStop] }
+        let manager =  await RegionManager(stopSequence: stops)
+        self.manager = manager
+        await manager.startMonitoring()
+        return await manager.eventStream
+    }
+    
+    func stop() {
+        manager = nil // triggers onTermination which calls stopAll()
+    }
+}
+
+private let actor = LocationActor()
 
 extension LocationClient: DependencyKey {
     static let liveValue = Self(
-        currentLocation: {
-            LocationData()
-        },
-        locationStream: {
-            AsyncStream { continuation in
-                continuation.finish()
-            }
-        },
         startMonitoring: { route in
-            
+            return await actor.start(route: route)
         },
         stopMonitoring: {
-            
+            await actor.stop()
         }
     )
-
-    static let testValue: Self = .liveValue
 }
 
 extension DependencyValues {
