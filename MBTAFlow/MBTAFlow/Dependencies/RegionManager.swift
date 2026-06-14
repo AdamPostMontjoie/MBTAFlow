@@ -113,19 +113,7 @@ class RegionManager: NSObject, CLLocationManagerDelegate {
     //using this from CLLocationManager might be a solution to underground gps disconnnect, worth a try
     //func startMonitoringSignificantLocationChanges()
     
-    //location permissions changed
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-            case .authorizedWhenInUse:
-                manager.requestAlwaysAuthorization()
-            case .authorizedAlways:
-                print("Location Authorized")
-            case .restricted, .denied:
-                self.authorizationDenied()
-            default:
-                break
-        }
-    }
+    
     
     //on error
     func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {

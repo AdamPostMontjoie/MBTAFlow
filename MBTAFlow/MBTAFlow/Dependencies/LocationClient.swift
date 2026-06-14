@@ -88,7 +88,6 @@ extension LocationClient: DependencyKey {
             CLLocationManager().authorizationStatus
         },
         requestLocationAuthorization: {
-            CLLocationManager().requestWhenInUseAuthorization()
             CLLocationManager().requestAlwaysAuthorization()
         },
         openSettings: {

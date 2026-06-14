@@ -134,15 +134,16 @@ struct RouteStarterFeature {
             case let .locationAuthorizationStatusReceived(route, status):
                 print(status.rawValue)
                 switch status {
-                case .authorizedAlways, .authorizedWhenInUse:
+                case .authorizedAlways:
                     return .send(.beginRoute(route))
 
                 case .notDetermined:
                     state.pendingRoute = route
                     state.destination = .locationAlert(LocationAlertFeature.State(mode: .firstTime))
                     return .none
-
-                case .denied, .restricted:
+                    
+                //user doesn't have enough permissions
+                case .denied, .restricted, .authorizedWhenInUse:
                     state.destination = .locationAlert(LocationAlertFeature.State(mode: .changeSettings))
                     return .none
 
@@ -153,11 +154,12 @@ struct RouteStarterFeature {
                 guard let pendingRoute = state.pendingRoute else { return .none }
 
                 switch status {
-                case .authorizedAlways, .authorizedWhenInUse:
+                case .authorizedAlways:
                     state.pendingRoute = nil
                     return .send(.beginRoute(pendingRoute))
 
-                case .denied, .restricted:
+                case .denied, .restricted, .authorizedWhenInUse:
+                    // may need to remove depending on HIG about immediately telling them to change settings
                     state.destination = .locationAlert(.init(mode: .changeSettings))
                     return .none
 
