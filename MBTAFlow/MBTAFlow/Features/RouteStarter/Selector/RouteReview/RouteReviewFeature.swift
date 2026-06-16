@@ -83,7 +83,9 @@ struct RouteReviewFeature {
             
             //if this is the last leg, should we delete the entire route?
             case let .legRows(.element(id: _, action: .delegate(.deleteLeg(id)))):
+                let previousRoute = state.route
                 state.route.legs.removeAll() { $0.id == id }
+                state.route = routeWithUpdatedDefaultName(previousRoute: previousRoute, updatedRoute: state.route)
                 state.legRows.removeAll() { $0.id == id }
                 return .send(.delegate(.updateRoute(state.route)))
 

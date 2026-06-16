@@ -219,6 +219,7 @@ struct RouteStarterFeature {
                     do {
                         let times = try await fetchTransitTimes(stop)
                         // Send the data back into the reducer
+                        print(stop.latitude, stop.longitude)
                         print(times)
                         await send(.mbtaApiResponseReceived(times))
                     }

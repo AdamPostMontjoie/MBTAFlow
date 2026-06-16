@@ -91,10 +91,11 @@ struct EditLegFeature {
                 }
 
                 state.pendingEditedLeg = nil
-                    
+                
                 return .run { send in
-                    await self.dismiss()
                     await send(.delegate(.saveEditedLeg(updatedLeg)))
+                    await self.dismiss()
+                    
                 }
                 
                

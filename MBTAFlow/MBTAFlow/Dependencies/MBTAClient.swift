@@ -74,8 +74,6 @@ extension MBTAClient:DependencyKey {
             do {
                 let predictionResponse = try decoder.decode(PredictionResponse.self, from: data)
                 
-                // 5. Format the output
-                var upcomingTimes: [String] = []
                 
                 // MBTA returns ISO8601 formatted strings (e.g., "2026-06-04T15:38:58-04:00")
                 let isoFormatter = ISO8601DateFormatter()
@@ -85,23 +83,29 @@ extension MBTAClient:DependencyKey {
                 displayFormatter.timeStyle = .short
                 
                 let calendarComparator = Calendar.current
-                for prediction in predictionResponse.data {
-                    // If it's the first stop on a route, arrivalTime is null, so fallback to departureTime
-                    
-                    if let timeString = prediction.attributes.arrivalTime ?? prediction.attributes.departureTime,
-                       let date = isoFormatter.date(from: timeString) {
-                        let now = Date()
-                        //filter out any times in the past
-                        if calendarComparator.isDate(date, equalTo: now, toGranularity: .minute) || date > now {
-                            let readableTime = displayFormatter.string(from: date)
-                            upcomingTimes.append(readableTime)
-                        }
-                        
-                        
-                    } else if let status = prediction.attributes.status {
-                        // Fallback: If there is no exact time, the MBTA might just provide a status like "Approaching"
-                        upcomingTimes.append(status)
+                let now = Date()
+                let upcomingTimes = predictionResponse.data.lazy.compactMap { prediction -> String? in
+                    // 1. Physical signs prioritize specific statuses over timestamps
+                    if let status = prediction.attributes.status {
+                        return status
                     }
+                    
+                    // 2. If no status, calculate the "minutes away" countdown
+                    if let timeString = prediction.attributes.arrivalTime ?? prediction.attributes.departureTime,
+                       let date = isoFormatter.date(from: timeString),
+                       date >= now { // Filter out past times
+                        
+                        let minutesAway = calendarComparator.dateComponents([.minute], from: now, to: date).minute ?? 0
+                        
+                        if minutesAway <= 0 {
+                            return "Arriving"
+                        } else {
+                            return "\(minutesAway) min"
+                        }
+                    }
+                    
+                    // Returning nil automatically drops the item from the final array
+                    return nil
                 }
                 return Array(upcomingTimes.prefix(3))
             } catch {
