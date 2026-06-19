@@ -13,14 +13,7 @@ import SwiftUI
 //it tells us where we are, if we've crossed into a region
 //we tell it when to setup and teardown regions
 
-enum LocationEvent: Equatable {
-    case enteredStop(stopId: String) //may need to change from stopId
-    case exitedStop(stopId: String)
-    case authorizationDenied
-    case monitoringFailed(stopId: String, error: locationError)
-    
-    //add other
-}
+
 
 enum locationError: Error, Equatable {
     case locationUnknown
