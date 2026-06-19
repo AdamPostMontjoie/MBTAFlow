@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "96318B972FC4BC4600534049"
-               BuildableName = "MBTAFlowWidgetExtension.appex"
-               BlueprintName = "MBTAFlowWidgetExtension"
-               ReferencedContainer = "container:MBTAFlow.xcodeproj">
+               BuildableName = "TRoutesWidgetExtension.appex"
+               BlueprintName = "TRoutesWidgetExtension"
+               ReferencedContainer = "container:TRoutes.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -30,9 +30,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "96318B412FC1F7FA00534049"
-               BuildableName = "MBTAFlow.app"
-               BlueprintName = "MBTAFlow"
-               ReferencedContainer = "container:MBTAFlow.xcodeproj">
+               BuildableName = "TRoutes.app"
+               BlueprintName = "TRoutes"
+               ReferencedContainer = "container:TRoutes.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "96318B412FC1F7FA00534049"
-            BuildableName = "MBTAFlow.app"
-            BlueprintName = "MBTAFlow"
-            ReferencedContainer = "container:MBTAFlow.xcodeproj">
+            BuildableName = "TRoutes.app"
+            BlueprintName = "TRoutes"
+            ReferencedContainer = "container:TRoutes.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
@@ -98,9 +98,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "96318B412FC1F7FA00534049"
-            BuildableName = "MBTAFlow.app"
-            BlueprintName = "MBTAFlow"
-            ReferencedContainer = "container:MBTAFlow.xcodeproj">
+            BuildableName = "TRoutes.app"
+            BlueprintName = "TRoutes"
+            ReferencedContainer = "container:TRoutes.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
