@@ -69,6 +69,7 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     }
     
     //this will be used to display an ETA when we're in movement by polling the next stop, and to figure out dynamic timer setting (?). May do for region manager later
+    //stop events endpoint looks good for this
     private func fetchVehicleArrivalEstimation() async {
         
     }
