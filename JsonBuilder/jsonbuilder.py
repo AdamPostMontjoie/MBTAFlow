@@ -70,6 +70,29 @@ def read_trip_pattern_lookup(gtfs_dir, target_pattern_ids):
     return trips
 
 
+def build_pattern_models(patterns):
+    pattern_models = []
+
+    for pattern in patterns:
+        pattern_models.append(
+            {
+                "patternId": pattern["route_pattern_id"],
+                "routeId": pattern["route_id"],
+                "directionId": int(pattern["direction_id"]),
+                "name": pattern["route_pattern_name"],
+                "typicality": int(pattern["route_pattern_typicality"])
+                if pattern.get("route_pattern_typicality")
+                else None,
+                "isCanonical": pattern.get("canonical_route_pattern") == "1",
+            }
+        )
+
+    pattern_models.sort(
+        key=lambda row: (row["routeId"], row["directionId"], row["patternId"])
+    )
+    return pattern_models
+
+
 def stop_name(stop):
     platform_name = stop.get("platform_name", "")
     if platform_name:
@@ -77,10 +100,8 @@ def stop_name(stop):
     return stop["stop_name"]
 
 
-def monitoring_mode(stop):
+def transit_type(stop):
     vehicle_type = stop.get("vehicle_type", "")
-    if stop.get("location_type") == "1":
-        return "station"
     if vehicle_type in {"0", "1"}:
         return "rapid_transit"
     if vehicle_type == "2":
@@ -99,6 +120,7 @@ def build_static_json(gtfs_dir, route_ids):
     representative_trip_ids = {pattern["representative_trip_id"] for pattern in patterns}
     stop_times_by_trip = read_stop_times_for_trips(gtfs_dir, representative_trip_ids)
     trips = read_trip_pattern_lookup(gtfs_dir, pattern_ids)
+    pattern_models = build_pattern_models(patterns)
 
     sequences = []
     platform_pattern_ids = defaultdict(set)
@@ -143,7 +165,7 @@ def build_static_json(gtfs_dir, route_ids):
                 "name": stop_name(stop),
                 "latitude": float(stop["stop_lat"]) if stop.get("stop_lat") else None,
                 "longitude": float(stop["stop_lon"]) if stop.get("stop_lon") else None,
-                "monitoringMode": monitoring_mode(stop),
+                "transitType": transit_type(stop),
                 "patterns": sorted(platform_pattern_ids[platform_id]),
             }
         )
@@ -174,7 +196,7 @@ def build_static_json(gtfs_dir, route_ids):
         )
     )
 
-    return sequences, platforms, stations, trips
+    return sequences, platforms, stations, trips, pattern_models
 
 
 def write_json(path, data):
@@ -209,18 +231,22 @@ def parse_args():
 
 def main():
     args = parse_args()
-    sequences, platforms, stations, trips = build_static_json(args.gtfs_dir, args.routes)
+    sequences, platforms, stations, trips, patterns = build_static_json(
+        args.gtfs_dir, args.routes
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     write_json(args.output_dir / "sequences.json", sequences)
     write_json(args.output_dir / "platforms.json", platforms)
     write_json(args.output_dir / "stations.json", stations)
     write_json(args.output_dir / "trips.json", trips)
+    write_json(args.output_dir / "patterns.json", patterns)
 
     print(f"Wrote {len(sequences):,} sequence edges")
     print(f"Wrote {len(platforms):,} platforms")
     print(f"Wrote {len(stations):,} stations")
     print(f"Wrote {len(trips):,} trip pattern mappings")
+    print(f"Wrote {len(patterns):,} route patterns")
     print(f"Output directory: {args.output_dir}")
 
 

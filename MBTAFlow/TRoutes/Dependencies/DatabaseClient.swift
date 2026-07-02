@@ -34,7 +34,15 @@ extension DatabaseClient: DependencyKey {
                 let storeURL = appSupport.appending(path: "MBTAFlow.store")
                 let configuration = ModelConfiguration(url: storeURL)
                 
-                sharedContainer = try ModelContainer(for: Route.self, configurations: configuration)
+                sharedContainer = try ModelContainer(
+                    for: Route.self,
+                    TransitStation.self,
+                    TransitPlatform.self,
+                    TransitPattern.self,
+                    TransitSequenceEdge.self,
+                    TransitTripPattern.self,
+                    configurations: configuration
+                )
             } catch {
                 fatalError("Failed to initialize SwiftData container: \(error)")
             }
@@ -119,5 +127,3 @@ extension DependencyValues {
         set { self[DatabaseClient.self] = newValue }
     }
 }
-
-
