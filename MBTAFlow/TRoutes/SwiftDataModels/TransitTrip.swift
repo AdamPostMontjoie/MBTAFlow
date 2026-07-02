@@ -16,7 +16,6 @@ final class TransitTripPattern {
     var directionId: Int
     var serviceId: String
     var headsign: String
-    var pattern: TransitPattern?
 
     init(
         tripId: String,
@@ -24,8 +23,7 @@ final class TransitTripPattern {
         routeId: String,
         directionId: Int,
         serviceId: String,
-        headsign: String,
-        pattern: TransitPattern? = nil
+        headsign: String
     ) {
         self.tripId = tripId
         self.patternId = patternId
@@ -33,6 +31,5 @@ final class TransitTripPattern {
         self.directionId = directionId
         self.serviceId = serviceId
         self.headsign = headsign
-        self.pattern = pattern
     }
 }

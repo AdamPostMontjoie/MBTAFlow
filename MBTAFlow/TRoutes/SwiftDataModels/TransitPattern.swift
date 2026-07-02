@@ -18,8 +18,6 @@ final class TransitPattern {
     var isCanonical: Bool
     @Relationship(deleteRule: .cascade, inverse: \TransitSequenceEdge.pattern)
     var sequenceEdges: [TransitSequenceEdge]
-    @Relationship(deleteRule: .nullify, inverse: \TransitTripPattern.pattern)
-    var trips: [TransitTripPattern]
 
     init(
         patternId: String,
@@ -28,8 +26,7 @@ final class TransitPattern {
         name: String,
         typicality: Int? = nil,
         isCanonical: Bool = false,
-        sequenceEdges: [TransitSequenceEdge] = [],
-        trips: [TransitTripPattern] = []
+        sequenceEdges: [TransitSequenceEdge] = []
     ) {
         self.patternId = patternId
         self.routeId = routeId
@@ -38,6 +35,5 @@ final class TransitPattern {
         self.typicality = typicality
         self.isCanonical = isCanonical
         self.sequenceEdges = sequenceEdges
-        self.trips = trips
     }
 }
