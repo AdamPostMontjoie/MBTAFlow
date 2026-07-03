@@ -94,25 +94,82 @@ def read_stop_times_for_trips(gtfs_dir, trip_ids):
     return stop_times_by_trip
 
 
-def build_pattern_models(patterns):
-    pattern_models = []
+def parse_optional_int(value):
+    return int(value) if value else None
+
+
+def build_pattern_models(patterns, stop_times_by_trip):
+    route_direction_patterns = defaultdict(list)
 
     for pattern in patterns:
-        pattern_models.append(
-            {
-                "patternId": pattern["route_pattern_id"],
-                "routeId": pattern["route_id"],
-                "directionId": int(pattern["direction_id"]),
-                "name": pattern["route_pattern_name"],
-                "typicality": int(pattern["route_pattern_typicality"])
-                if pattern.get("route_pattern_typicality")
-                else None,
-                "isCanonical": pattern.get("canonical_route_pattern") == "1",
+        route_direction_patterns[
+            (pattern["route_id"], int(pattern["direction_id"]))
+        ].append(pattern)
+
+    pattern_models = []
+
+    for (route_id, direction_id), grouped_patterns in route_direction_patterns.items():
+        canonical_pattern_ids = {
+            pattern["route_pattern_id"]
+            for pattern in grouped_patterns
+            if pattern.get("canonical_route_pattern") == "1"
+        }
+
+        if canonical_pattern_ids:
+            default_pattern_ids = canonical_pattern_ids
+            default_reason = "mbta_canonical"
+        else:
+            typicalities = [
+                parse_optional_int(pattern.get("route_pattern_typicality"))
+                for pattern in grouped_patterns
+                if parse_optional_int(pattern.get("route_pattern_typicality")) is not None
+            ]
+            best_typicality = min(typicalities) if typicalities else None
+            default_pattern_ids = {
+                pattern["route_pattern_id"]
+                for pattern in grouped_patterns
+                if parse_optional_int(pattern.get("route_pattern_typicality")) == best_typicality
             }
+            default_reason = "best_typicality"
+
+        is_branched = len(default_pattern_ids) > 1
+        rows = []
+
+        for pattern in grouped_patterns:
+            pattern_id = pattern["route_pattern_id"]
+            stop_count = len(stop_times_by_trip.get(pattern["representative_trip_id"], []))
+            is_default_candidate = pattern_id in default_pattern_ids
+
+            rows.append(
+                {
+                    "patternId": pattern_id,
+                    "routeId": route_id,
+                    "directionId": direction_id,
+                    "name": pattern["route_pattern_name"],
+                    "typicality": parse_optional_int(pattern.get("route_pattern_typicality")),
+                    "isCanonical": pattern.get("canonical_route_pattern") == "1",
+                    "stopCount": stop_count,
+                    "isDefaultCandidate": is_default_candidate,
+                    "defaultReason": default_reason if is_default_candidate else None,
+                    "isBranched": is_branched,
+                }
+            )
+
+        rows.sort(
+            key=lambda row: (
+                not row["isDefaultCandidate"],
+                row["typicality"] if row["typicality"] is not None else 9999,
+                -row["stopCount"],
+                row["patternId"],
+            )
         )
 
+        for default_rank, row in enumerate(rows, start=1):
+            row["defaultRank"] = default_rank
+            pattern_models.append(row)
+
     pattern_models.sort(
-        key=lambda row: (row["routeId"], row["directionId"], row["patternId"])
+        key=lambda row: (row["routeId"], row["directionId"], row["defaultRank"])
     )
     return pattern_models
 
@@ -142,7 +199,7 @@ def build_static_json(gtfs_dir, route_ids):
     patterns = read_route_patterns(gtfs_dir, target_routes)
     representative_trip_ids = {pattern["representative_trip_id"] for pattern in patterns}
     stop_times_by_trip = read_stop_times_for_trips(gtfs_dir, representative_trip_ids)
-    pattern_models = build_pattern_models(patterns)
+    pattern_models = build_pattern_models(patterns, stop_times_by_trip)
 
     sequences = []
     platform_pattern_ids = defaultdict(set)
