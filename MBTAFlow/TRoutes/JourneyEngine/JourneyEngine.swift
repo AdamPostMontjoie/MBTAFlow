@@ -77,10 +77,10 @@ actor JourneyEngine {
     }
     
     func startListeningToUndergroundEvents() async {
-        guard locationListeningTask == nil else { return }
+        guard undergroundListeningTask == nil else { return }
         let stream = await UndergroundManager.shared.makeEventStream()
         
-        locationListeningTask = Task {
+        undergroundListeningTask = Task {
             for await event in stream {
                 await self.journeyCommandValidator(event)
             }
