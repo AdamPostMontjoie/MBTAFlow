@@ -12,6 +12,8 @@ struct ResolvedStop:Equatable, Identifiable {
     var sourceLegId: UUID
     var legIndex: Int
     var legStopIndex: Int
+    var patternStopIndex: Int
+    var patternEdgeSequenceNumber: Int
     var platformId: String
     var stationId: String
     var mbtaStopId: String
@@ -31,6 +33,8 @@ struct ResolvedStop:Equatable, Identifiable {
         sourceLegId: UUID,
         legIndex: Int,
         legStopIndex: Int,
+        patternStopIndex: Int,
+        patternEdgeSequenceNumber: Int,
         platformId: String,
         stationId: String,
         mbtaStopId: String,
@@ -48,6 +52,8 @@ struct ResolvedStop:Equatable, Identifiable {
         self.sourceLegId = sourceLegId
         self.legIndex = legIndex
         self.legStopIndex = legStopIndex
+        self.patternStopIndex = patternStopIndex
+        self.patternEdgeSequenceNumber = patternEdgeSequenceNumber
         self.platformId = platformId
         self.stationId = stationId
         self.mbtaStopId = mbtaStopId
@@ -64,6 +70,19 @@ struct ResolvedStop:Equatable, Identifiable {
     }
 }
 
+struct ResolvedPatternStop: Equatable, Identifiable {
+    var id: String {
+        "\(patternStopIndex)-\(platformId)"
+    }
+
+    var patternStopIndex: Int
+    var patternEdgeSequenceNumber: Int
+    var platformId: String
+    var stationId: String
+    var stopName: String
+    var monitoringMode: MonitoringMode
+}
+
 
 struct ResolvedLeg: Equatable, Identifiable {
     var id: UUID
@@ -78,9 +97,26 @@ struct ResolvedLeg: Equatable, Identifiable {
     var transitDirection: TransitDirection?
     var selectedPatternId: String
     var stops: [ResolvedStop]
+    var patternStops: [ResolvedPatternStop]
 
     var stopsOnLeg:Int {
         stops.count
+    }
+
+    var originPatternStopIndex: Int {
+        startStop.patternStopIndex
+    }
+
+    var destinationPatternStopIndex: Int {
+        endStop.patternStopIndex
+    }
+
+    var originPatternEdgeSequenceNumber: Int {
+        startStop.patternEdgeSequenceNumber
+    }
+
+    var destinationPatternEdgeSequenceNumber: Int {
+        endStop.patternEdgeSequenceNumber
     }
     
     
@@ -96,7 +132,8 @@ struct ResolvedLeg: Equatable, Identifiable {
         selectedPatternId: String,
         transitBranch: TransitBranch? = nil,
         transitDirection: TransitDirection? = nil,
-        stops: [ResolvedStop]
+        stops: [ResolvedStop],
+        patternStops: [ResolvedPatternStop]
     ) {
         self.id = id
         self.sourceLegId = sourceLegId
@@ -110,9 +147,8 @@ struct ResolvedLeg: Equatable, Identifiable {
         self.endStop = endStop
         self.selectedPatternId = selectedPatternId
         self.stops = stops
+        self.patternStops = patternStops
     }
-
-
 }
 
 struct ResolvedUserRoute: Equatable, Identifiable {

@@ -6,6 +6,7 @@
 //
 import CoreLocation
 import Dependencies
+import Foundation
 
 
 
@@ -26,35 +27,161 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     private struct TrackedVehicleState {
         var currentVehicleId: String?
         var currentVehicleTrip: String?
-        var currentVehicleStopSequence: Int?
+        var currentVehicleAPIStopSequence: Int?
         var currentVehicleRouteId: String?
         var currentVehicleStatus: String?
 
         mutating func updateVehicleInfo(
             vehicleId: String? = nil,
             tripId: String? = nil,
-            stopSequence: Int? = nil,
+            apiStopSequence: Int? = nil,
             routeId: String? = nil,
             status: String? = nil
         ) {
             self.currentVehicleId = vehicleId
             self.currentVehicleTrip = tripId
-            self.currentVehicleStopSequence = stopSequence
+            self.currentVehicleAPIStopSequence = apiStopSequence
             self.currentVehicleRouteId = routeId
             self.currentVehicleStatus = status
+        }
+    }
+
+    private struct MatchedLegPath {
+        let sourceLegId: UUID
+        let selectedPatternId: String
+        let tripId: String?
+        let legStopByStopId: [String: ResolvedStop]
+        let patternStopByStopId: [String: ResolvedPatternStop]
+        let patternStopByEdgeSequenceNumber: [Int: ResolvedPatternStop]
+        let parentStationIdByTripStopId: [String: String]
+
+        init(leg: ResolvedLeg, tripTrackingData: LiveTripTrackingData?) {
+            sourceLegId = leg.sourceLegId
+            selectedPatternId = leg.selectedPatternId
+            tripId = tripTrackingData?.tripId
+
+            var legStopByStopId: [String: ResolvedStop] = [:]
+            for stop in leg.stops {
+                legStopByStopId[stop.mbtaStopId] = stop
+                legStopByStopId[stop.platformId] = stop
+                legStopByStopId[stop.stationId] = stop
+            }
+            self.legStopByStopId = legStopByStopId
+
+            var patternStopByStopId: [String: ResolvedPatternStop] = [:]
+            var patternStopByEdgeSequenceNumber: [Int: ResolvedPatternStop] = [:]
+            for stop in leg.patternStops {
+                patternStopByStopId[stop.platformId] = stop
+                patternStopByStopId[stop.stationId] = stop
+                patternStopByEdgeSequenceNumber[stop.patternEdgeSequenceNumber] = stop
+            }
+            self.patternStopByStopId = patternStopByStopId
+            self.patternStopByEdgeSequenceNumber = patternStopByEdgeSequenceNumber
+
+            var parentStationIdByTripStopId: [String: String] = [:]
+            for stop in tripTrackingData?.stops ?? [] {
+                if let parentStationId = stop.parentStationId {
+                    parentStationIdByTripStopId[stop.stopId] = parentStationId
+                }
+            }
+            self.parentStationIdByTripStopId = parentStationIdByTripStopId
+        }
+
+        func matches(leg: ResolvedLeg, tripTrackingData: LiveTripTrackingData?) -> Bool {
+            sourceLegId == leg.sourceLegId &&
+            selectedPatternId == leg.selectedPatternId &&
+            tripId == tripTrackingData?.tripId
+        }
+
+        func legStop(forVehicleStopId stopId: String?) -> ResolvedStop? {
+            guard let stopId else { return nil }
+            if let stop = legStopByStopId[stopId] {
+                return stop
+            }
+
+            guard let parentStationId = parentStationIdByTripStopId[stopId] else {
+                return nil
+            }
+
+            return legStopByStopId[parentStationId]
+        }
+
+        func patternStop(
+            forVehicleStopId stopId: String?,
+            apiStopSequence: Int?
+        ) -> ResolvedPatternStop? {
+            if let stopId {
+                if let stop = patternStopByStopId[stopId] {
+                    return stop
+                }
+
+                if let parentStationId = parentStationIdByTripStopId[stopId],
+                   let stop = patternStopByStopId[parentStationId] {
+                    return stop
+                }
+            }
+
+            guard let apiStopSequence else { return nil }
+            return patternStopByEdgeSequenceNumber[apiStopSequence]
+        }
+    }
+
+    private struct TrackedVehiclePosition {
+        let vehicleStopId: String?
+        let apiStopSequence: Int?
+        let vehicleStatus: String?
+        let legStopIndex: Int?
+        let patternStopIndex: Int?
+        let patternEdgeSequenceNumber: Int?
+        let isBeforeOrigin: Bool
+        let isAtOrigin: Bool
+        let isBetweenOriginAndDestination: Bool
+        let isAtDestination: Bool
+        let isPastDestination: Bool
+
+        init(
+            vehicleStopId: String?,
+            apiStopSequence: Int?,
+            vehicleStatus: String?,
+            legStop: ResolvedStop?,
+            patternStop: ResolvedPatternStop?,
+            leg: ResolvedLeg
+        ) {
+            self.vehicleStopId = vehicleStopId
+            self.apiStopSequence = apiStopSequence
+            self.vehicleStatus = vehicleStatus
+            self.legStopIndex = legStop?.legStopIndex
+            self.patternStopIndex = patternStop?.patternStopIndex ?? legStop?.patternStopIndex
+            self.patternEdgeSequenceNumber = patternStop?.patternEdgeSequenceNumber ?? legStop?.patternEdgeSequenceNumber
+
+            if let patternStopIndex = self.patternStopIndex {
+                isBeforeOrigin = patternStopIndex < leg.originPatternStopIndex
+                isAtOrigin = patternStopIndex == leg.originPatternStopIndex
+                isBetweenOriginAndDestination = patternStopIndex > leg.originPatternStopIndex &&
+                    patternStopIndex < leg.destinationPatternStopIndex
+                isAtDestination = patternStopIndex == leg.destinationPatternStopIndex
+                isPastDestination = patternStopIndex > leg.destinationPatternStopIndex
+            } else {
+                isBeforeOrigin = false
+                isAtOrigin = false
+                isBetweenOriginAndDestination = false
+                isAtDestination = false
+                isPastDestination = false
+            }
         }
     }
     
     private var currentVehicle = TrackedVehicleState()
     private var currentLeg: ResolvedLeg? //refine to resolved leg
-    //private var currentMatchResult: TransitTripMatchResult?
+    private var currentTripTrackingData: LiveTripTrackingData?
+    private var currentMatchedLegPath: MatchedLegPath?
+    private var currentVehiclePosition: TrackedVehiclePosition?
     private var phase: VehicleTrackingPhase = .idle
     private var preparedCommand: JourneyCommand? 
     
     private var apiTimer: Timer?
     
     @Dependency(\.mbtaClient) var mbtaClient
-    //@Dependency(\.databaseClient) var databaseClient: DatabaseClient
 
 
     func startSession() {
@@ -68,20 +195,23 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     }
     
     //journey engine hands us a vehicle to track
-    //only should be done when we're at stop
-    func updateTrackedVehicle(prediction: TransitPrediction, leg: ResolvedLeg) async {
+    func setTrackedVehicle(prediction: TransitPrediction, leg: ResolvedLeg) async {
         currentVehicle.updateVehicleInfo(
-            vehicleId: prediction.vehicleId,
-            tripId: prediction.tripId,
-            stopSequence: prediction.stopSequence,
-            routeId: leg.mbtaRouteId
+                vehicleId: prediction.vehicleId,
+                tripId: prediction.tripId,
+                apiStopSequence: prediction.stopSequence,
+                routeId: leg.mbtaRouteId
         )
         currentLeg = leg
-        //currentMatchResult = nil
+        currentTripTrackingData = nil
+        currentMatchedLegPath = nil
+        currentVehiclePosition = nil
         preparedCommand = nil
         phase = .waitingToBoard
+        
         await fetchVehicleData()
     }
+
 
     func stopSession() {
         locationManager.stopUpdatingLocation()
@@ -115,19 +245,21 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     }
 
     private func handleVehicleData(vehicleData:VehicleData) async {
-        updateTrackingSnapshot(with: vehicleData)
-
-        switch phase {
-        case .idle, .completed:
+        updateVehicleData(with: vehicleData)
+        if phase == .idle || phase == .completed{
             return
+        }
 
-        case .waitingToBoard:
-            //await matchVehiclePattern(vehicleData: vehicleData)
-            print("UndergroundManager vehicle matching is paused until resolved-leg live trip mapping is wired.")
-
-        case .trackingVehicle:
-            //evaluateTrackedVehicleProgress(vehicleData: vehicleData)
-            print("UndergroundManager vehicle progress evaluation is paused until resolved-leg live trip mapping is wired.")
+        await refreshTripTrackingData(vehicleData: vehicleData)
+        
+        updateVehiclePosition(with: vehicleData)
+        printCurrentVehiclePosition()
+        
+        if phase == .waitingToBoard {
+            evaluateBoardingProgress()
+        }
+        else if phase == .trackingVehicle {
+            evaluateTrackedVehicleProgress()
         }
 
         if phase != .completed {
@@ -135,55 +267,193 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
         }        
     }
 
-    private func updateTrackingSnapshot(with vehicleData: VehicleData) {
+    private func updateVehicleData(with vehicleData: VehicleData) {
         currentVehicle.updateVehicleInfo(
             vehicleId: currentVehicle.currentVehicleId,
             tripId: vehicleData.tripId ?? currentVehicle.currentVehicleTrip,
-            stopSequence: vehicleData.currentStopSequence ?? currentVehicle.currentVehicleStopSequence,
+            apiStopSequence: vehicleData.currentStopSequence ?? currentVehicle.currentVehicleAPIStopSequence,
             routeId: vehicleData.routeId ?? currentVehicle.currentVehicleRouteId,
             status: vehicleData.currentStatus ?? currentVehicle.currentVehicleStatus
         )
     }
 
-    private func evaluateBoardingProgress(vehicleData: VehicleData) {
-        guard hasVehicleLeftOrigin(vehicleData: vehicleData),
-              let originStopId = currentLeg?.startStop.mbtaStopId else {
+
+    private func refreshTripTrackingData(vehicleData:VehicleData) async {
+        //only refresh on new trip
+        guard let tripId = vehicleData.tripId ?? currentVehicle.currentVehicleTrip,
+              currentTripTrackingData?.tripId != tripId else {
+            return
+        }
+
+        do {
+            let tripTrackingData = try await mbtaClient.fetchTripTrackingData(tripId)
+            currentTripTrackingData = tripTrackingData
+            currentVehicle.updateVehicleInfo(
+                vehicleId: currentVehicle.currentVehicleId ?? tripTrackingData.vehicleId,
+                tripId: tripTrackingData.tripId,
+                apiStopSequence: currentVehicle.currentVehicleAPIStopSequence ?? tripTrackingData.vehicleApiStopSequence,
+                routeId: currentVehicle.currentVehicleRouteId,
+                status: currentVehicle.currentVehicleStatus ?? tripTrackingData.vehicleStatus
+            )
+            // we need a new path once we get new trip data
+            updateMatchedLegPath()
+        } catch {
+            handleVehicleFetchError(error: error)
+        }
+    }
+
+    private var currentTripTrackingDataForCurrentVehicle: LiveTripTrackingData? {
+        guard let currentTripTrackingData else { return nil }
+        guard currentVehicle.currentVehicleTrip == nil ||
+              currentVehicle.currentVehicleTrip == currentTripTrackingData.tripId else {
+            return nil
+        }
+
+        return currentTripTrackingData
+    }
+
+    private func updateMatchedLegPath() {
+        guard let currentLeg else {
+            currentMatchedLegPath = nil
+            return
+        }
+
+        let tripTrackingData = currentTripTrackingDataForCurrentVehicle
+        guard currentMatchedLegPath?.matches(leg: currentLeg, tripTrackingData: tripTrackingData) != true else {
+            return
+        }
+
+        currentMatchedLegPath = MatchedLegPath(
+            leg: currentLeg,
+            tripTrackingData: tripTrackingData
+        )
+    }
+
+    private func updateVehiclePosition(with vehicleData: VehicleData) {
+        guard let currentLeg,
+              let currentMatchedLegPath else {
+            currentVehiclePosition = nil
+            return
+        }
+
+        let tripTrackingData = currentTripTrackingDataForCurrentVehicle
+        let vehicleStopId = vehicleData.stopId ?? tripTrackingData?.vehicleStopId
+        let apiStopSequence = vehicleData.currentStopSequence ??
+            tripTrackingData?.vehicleApiStopSequence ??
+            currentVehicle.currentVehicleAPIStopSequence
+        let vehicleStatus = (vehicleData.currentStatus ??
+            tripTrackingData?.vehicleStatus ??
+            currentVehicle.currentVehicleStatus)?.lowercased()
+
+        let legStop = currentMatchedLegPath.legStop(forVehicleStopId: vehicleStopId)
+        let patternStop = currentMatchedLegPath.patternStop(
+            forVehicleStopId: vehicleStopId,
+            apiStopSequence: apiStopSequence
+        )
+
+        currentVehiclePosition = TrackedVehiclePosition(
+            vehicleStopId: vehicleStopId,
+            apiStopSequence: apiStopSequence,
+            vehicleStatus: vehicleStatus,
+            legStop: legStop,
+            patternStop: patternStop,
+            leg: currentLeg
+        )
+    }
+
+    private func evaluateBoardingProgress() {
+        guard vehicleHasDepartedOrigin(),
+              let originStopId = currentLeg?.startStop.stationId else {
             return
         }
 
         phase = .trackingVehicle
         prepareCommand(.executeExit(stopId: originStopId))
-        evaluateTrackedVehicleProgress(vehicleData: vehicleData)
+        evaluateTrackedVehicleProgress()
     }
 
-    private func evaluateTrackedVehicleProgress(vehicleData: VehicleData) {
-        guard let currentVehicleSequence = vehicleData.currentStopSequence ?? currentVehicle.currentVehicleStopSequence,
-              let destinationStopId = currentLeg?.endStop.mbtaStopId else {
+    private func evaluateTrackedVehicleProgress() {
+        guard vehicleHasStoppedAtDestination(),
+              let destinationStopId = currentLeg?.endStop.stationId else {
             return
         }
 
-        if currentVehicleSequence >= currentLeg position lol{
-            phase = .completed
-            cancelTimer()
-            prepareCommand(.executeEntry(stopId: destinationStopId))
-        }
+        phase = .completed
+        cancelTimer()
+        prepareCommand(.executeEntry(stopId: destinationStopId))
     }
 
-    private func hasVehicleLeftOrigin(vehicleData: VehicleData) -> Bool {
-        guard let currentVehicleSequence = vehicleData.currentStopSequence ?? currentVehicle.currentVehicleStopSequence else {
-            return false
+    private func vehicleHasDepartedOrigin() -> Bool {
+        guard let currentVehiclePosition else { return false }
+        return currentVehiclePosition.isBetweenOriginAndDestination ||
+            currentVehiclePosition.isAtDestination ||
+            currentVehiclePosition.isPastDestination
+    }
+
+    private func vehicleHasStoppedAtDestination() -> Bool {
+        guard let currentVehiclePosition else { return false }
+        return currentVehiclePosition.isAtDestination &&
+            currentVehiclePosition.vehicleStatus == "stopped_at"
+    }
+
+    private func printCurrentVehiclePosition() {
+        guard let currentLeg,
+              let currentVehiclePosition else {
+            return
         }
 
-        if currentVehicleSequence > matchResult.originSequence {
-            return true
+        let tripId = currentVehicle.currentVehicleTrip ?? currentTripTrackingDataForCurrentVehicle?.tripId ?? "nil"
+        let currentVehicleStopIdText = currentVehiclePosition.vehicleStopId ?? "nil"
+        let currentVehicleAPIStopSequenceText = currentVehiclePosition.apiStopSequence.map(String.init) ?? "nil"
+        let currentVehicleStatusText = currentVehiclePosition.vehicleStatus ?? "nil"
+        let currentVehicleLegStopIndexText = currentVehiclePosition.legStopIndex.map(String.init) ?? "nil"
+        let currentVehiclePatternIndexText = currentVehiclePosition.patternStopIndex.map(String.init) ?? "nil"
+        let currentVehiclePatternEdgeSequenceText = currentVehiclePosition.patternEdgeSequenceNumber.map(String.init) ?? "nil"
+
+        var output = """
+
+        === Live Trip Tracking Match ===
+        Trip:               \(tripId)
+        Route:              \(currentLeg.mbtaRouteId)
+        Direction:          \(currentLeg.mbtaDirectionId)
+        Pattern:            \(currentLeg.selectedPatternId)
+        Origin stop:         \(currentLeg.startStop.stationId)
+        Origin leg stop index: \(currentLeg.startStop.legStopIndex)
+        Origin pattern index: \(currentLeg.originPatternStopIndex)
+        Origin pattern edge sequence: \(currentLeg.originPatternEdgeSequenceNumber)
+        Destination stop:    \(currentLeg.endStop.stationId)
+        Destination leg stop index: \(currentLeg.endStop.legStopIndex)
+        Destination pattern index: \(currentLeg.destinationPatternStopIndex)
+        Destination pattern edge sequence: \(currentLeg.destinationPatternEdgeSequenceNumber)
+        Current stop:        \(currentVehicleStopIdText)
+        Current API stop sequence: \(currentVehicleAPIStopSequenceText)
+        Current API vehicle status:    \(currentVehicleStatusText)
+        Current leg stop index: \(currentVehicleLegStopIndexText)
+        Current pattern index: \(currentVehiclePatternIndexText)
+        Current pattern edge sequence: \(currentVehiclePatternEdgeSequenceText)
+
+        LEG_INDEX   PAT_INDEX   EDGE_SEQUENCE   PLATFORM        STATION
+        -----------------------------------------------
+        """
+
+        for stop in currentLeg.stops {
+            output += "\n\(stop.legStopIndex)     \(stop.patternStopIndex)     \(stop.patternEdgeSequenceNumber)     \(stop.platformId) \(stop.stopName)"
         }
 
-        guard currentVehicleSequence == matchResult.originSequence,
-              let currentVehicleStatus = vehicleData.currentStatus?.lowercased() else {
-            return false
+        output += """
+
+
+        FULL PATTERN
+        PAT_INDEX   EDGE_SEQUENCE   PLATFORM        STATION
+        -----------------------------------------------
+        """
+
+        for stop in currentLeg.patternStops {
+            output += "\n\(stop.patternStopIndex)     \(stop.patternEdgeSequenceNumber)     \(stop.platformId) \(stop.stopName)"
         }
 
-        return currentVehicleStatus == "in_transit_to"
+        output += "\n=========================="
+        print(output)
     }
 
     private func prepareCommand(_ command: JourneyCommand) {
@@ -218,7 +488,9 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     private func resetTracking() {
         currentVehicle = TrackedVehicleState()
         currentLeg = nil
-        //currentMatchResult = nil
+        currentTripTrackingData = nil
+        currentMatchedLegPath = nil
+        currentVehiclePosition = nil
         preparedCommand = nil
         phase = .idle
     }

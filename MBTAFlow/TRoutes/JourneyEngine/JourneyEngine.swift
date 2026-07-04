@@ -37,6 +37,7 @@ actor JourneyEngine {
     @Dependency(\.journeyClient) var journeyClient
     @Dependency(\.notificationsClient) var notificationsClient
     @Dependency(\.mbtaClient) var mbtaClient
+    @Dependency(\.databaseClient) var databaseClient
     
     private var journeyUpdateContinuation: AsyncStream<JourneyUpdate>.Continuation?
     private let journeyUpdates: AsyncStream<JourneyUpdate>
@@ -204,14 +205,18 @@ actor JourneyEngine {
                 freshJourney.predictionState = .loaded(stopId: stop.mbtaStopId, times:times)
                 //heavily gated later, just to test passing
                 if let firstPrediction = predictionResults.first,
-                   firstPrediction.vehicleId != nil {
-                    let currentLeg = freshJourney.route.legs.first { leg in
-                        leg.startStop.mbtaStopId == stop.mbtaStopId
+                   firstPrediction.tripId != nil {
+                    let resolvedRoute = await resolveRouteForUndergroundTracking(route: freshJourney.route)
+                    let currentLeg = resolvedRoute?.legs.first { leg in
+                        resolvedLeg(leg, startsAt: stop.mbtaStopId)
                     }
-                    await UndergroundManager.shared.updateTrackedVehicle(
-                        prediction: firstPrediction,
-                        leg: currentLeg
-                    )
+
+                    if let currentLeg {
+                        await UndergroundManager.shared.setTrackedVehicle(
+                            prediction: firstPrediction,
+                            leg: currentLeg
+                        )
+                    }
                 }
             }
         case .failure:
@@ -219,6 +224,22 @@ actor JourneyEngine {
         }
         
         saveActiveJourneyAndPublish(freshJourney)
+    }
+
+    // Temporary bridge until JourneyState owns resolved-route progress.
+    private func resolveRouteForUndergroundTracking(route: UserRoute) async -> ResolvedUserRoute? {
+        do {
+            return try await databaseClient.resolveUserRoute(route)
+        } catch {
+            print("JourneyEngine temporary route resolution failed: \(error)")
+            return nil
+        }
+    }
+
+    private func resolvedLeg(_ leg: ResolvedLeg, startsAt stopId: String) -> Bool {
+        leg.startStop.mbtaStopId == stopId ||
+        leg.startStop.platformId == stopId ||
+        leg.startStop.stationId == stopId
     }
     
     private func saveActiveJourneyAndPublish(_ journey: JourneyState) {

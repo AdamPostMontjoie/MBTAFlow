@@ -378,6 +378,7 @@ private func resolveLeg(
             return PatternResolutionCandidate(
                 patternId: patternId,
                 pattern: patternsById[patternId],
+                patternEdges: sortedEdges,
                 edges: slice,
                 originMatch: originMatch,
                 destinationMatch: destinationMatch
@@ -393,12 +394,22 @@ private func resolveLeg(
     }
 
     let selectedCandidate = try selectCandidate(validCandidates, leg: leg)
+    let patternStops = try selectedCandidate.patternEdges.enumerated().map { patternStopIndex, edge in
+        try makeResolvedPatternStop(
+            edge: edge,
+            patternStopIndex: patternStopIndex,
+            platform: platformsById[edge.platformId],
+            station: stationsById[edge.stationId]
+        )
+    }
+
     let stops = try selectedCandidate.edges.enumerated().map { stopIndex, edge in
         try makeResolvedStop(
             edge: edge,
             leg: leg,
             legIndex: legIndex,
             stopIndex: stopIndex,
+            patternStopIndex: selectedCandidate.originMatch.edgePosition + stopIndex,
             isLastStopOnLeg: stopIndex == selectedCandidate.edges.count - 1,
             isLastLeg: isLastLeg,
             nextLeg: nextLeg,
@@ -428,13 +439,15 @@ private func resolveLeg(
         selectedPatternId: selectedCandidate.patternId,
         transitBranch: leg.transitBranch,
         transitDirection: leg.transitDirection,
-        stops: stops
+        stops: stops,
+        patternStops: patternStops
     )
 }
 
 private struct PatternResolutionCandidate {
     let patternId: String
     let pattern: TransitPattern?
+    let patternEdges: [TransitSequenceEdge]
     let edges: [TransitSequenceEdge]
     let originMatch: StopMatch
     let destinationMatch: StopMatch
@@ -612,6 +625,7 @@ private func makeResolvedStop(
     leg: Leg,
     legIndex: Int,
     stopIndex: Int,
+    patternStopIndex: Int,
     isLastStopOnLeg: Bool,
     isLastLeg: Bool,
     nextLeg: Leg?,
@@ -646,6 +660,8 @@ private func makeResolvedStop(
         sourceLegId: leg.id,
         legIndex: legIndex,
         legStopIndex: stopIndex,
+        patternStopIndex: patternStopIndex,
+        patternEdgeSequenceNumber: edge.sequenceNumber,
         platformId: edge.platformId,
         stationId: edge.stationId,
         mbtaStopId: edge.platformId,
@@ -658,6 +674,29 @@ private func makeResolvedStop(
         journeyRole: journeyRole,
         monitoringMode: station.monitoringMode.resolvedMonitoringMode,
         overlapsWithNext: overlapsWithNext
+    )
+}
+
+private func makeResolvedPatternStop(
+    edge: TransitSequenceEdge,
+    patternStopIndex: Int,
+    platform: TransitPlatform?,
+    station: TransitStation?
+) throws -> ResolvedPatternStop {
+    guard platform != nil else {
+        throw ResolvedRouteError.missingPlatform(platformId: edge.platformId)
+    }
+    guard let station else {
+        throw ResolvedRouteError.missingStation(stationId: edge.stationId)
+    }
+
+    return ResolvedPatternStop(
+        patternStopIndex: patternStopIndex,
+        patternEdgeSequenceNumber: edge.sequenceNumber,
+        platformId: edge.platformId,
+        stationId: edge.stationId,
+        stopName: station.name,
+        monitoringMode: station.monitoringMode.resolvedMonitoringMode
     )
 }
 
