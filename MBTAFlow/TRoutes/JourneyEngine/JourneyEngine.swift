@@ -16,6 +16,7 @@ enum ManualEvent: Equatable {
 enum JourneyCommand: Equatable {
     case executeEntry(stopId:String)
     case executeExit(stopId:String)
+    case approachingStop(stopId: String)
     case refreshTimes(stopId: String)
     case authorizationDenied
     case monitoringFailed(stopId: String, error: locationError)
@@ -89,7 +90,7 @@ actor JourneyEngine {
     }
     
     func requestAuthorization() async {
-        await RegionManager.shared.requestAlwaysAuthorization()
+        await RegionManager.shared.requestLocationAuthorization()
     }
     
     //this is what is called to start fresh route
@@ -144,13 +145,18 @@ actor JourneyEngine {
             } else {
                 print("JourneyEngine ignored exit \(id) current: \(currentJourney.currentStop?.mbtaStopId ?? "nil") status: \(currentJourney.movementStatus)")
             }
+        case let .approachingStop(stopId: id):
+            if currentJourney.movementStatus == .enRoute,
+               currentJourney.currentStop?.mbtaStopId == id {
+                await sendNotificaition(message: "Approaching \(id)")
+            }
         case let .refreshTimes(stopId: id):
             if let currentStop = currentJourney.currentStop,
                currentStop.mbtaStopId == id {
                 await fetchPredictions(for: currentStop)
             }
         case .authorizationDenied:
-            print("no user deauthorized during journey")
+            print("the user deauthorized during journey")
             
         case .monitoringFailed(stopId: let stopId, error: let error):
             print("monitoring failed for \(stopId): \(error)")

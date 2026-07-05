@@ -116,7 +116,7 @@ struct RouteStarterFeature {
             case let .locationAuthorizationStatusReceived(route, status):
                 print(status.rawValue)
                 switch status {
-                case .authorizedAlways:
+                case .authorizedWhenInUse, .authorizedAlways:
                     return .send(.beginRoute(route))
 
                 case .notDetermined:
@@ -124,10 +124,9 @@ struct RouteStarterFeature {
                     state.destination = .locationAlert(LocationAlertFeature.State(mode: .firstTime))
                     return .none
                     
-                case .denied, .restricted, .authorizedWhenInUse:
+                case .denied, .restricted:
                     state.destination = .locationAlert(LocationAlertFeature.State(mode: .changeSettings))
                     return .none
-
                 @unknown default:
                     return .none
                 }
@@ -136,11 +135,11 @@ struct RouteStarterFeature {
                 guard let pendingRoute = state.pendingRoute else { return .none }
 
                 switch status {
-                case .authorizedAlways:
+                case .authorizedAlways, .authorizedWhenInUse:
                     state.pendingRoute = nil
                     return .send(.beginRoute(pendingRoute))
 
-                case .denied, .restricted, .authorizedWhenInUse:
+                case .denied, .restricted:
                     state.destination = .locationAlert(.init(mode: .changeSettings))
                     return .none
 

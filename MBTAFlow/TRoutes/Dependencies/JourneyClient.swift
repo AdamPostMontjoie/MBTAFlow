@@ -57,7 +57,7 @@ extension JourneyClient: DependencyKey {
             return await RegionManager.shared.authorizationStatus
         },
         requestLocationAuthorization: {
-            return await RegionManager.shared.requestAlwaysAuthorization()
+            return await RegionManager.shared.requestLocationAuthorization()
         },
         endRoute: {
             await JourneyEngine.shared.endRoute()
