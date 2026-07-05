@@ -27,7 +27,7 @@ struct RouteStarterFeature {
         var isActiveJourneyPresented = false
         var activeJourney: JourneyState?
         // Holds route while user tries to setup location permissions.
-        var pendingRoute: UserRoute?
+        var pendingRoute: ResolvedUserRoute?
         
         @Presents var destination: Destination.State?
     }
@@ -38,10 +38,10 @@ struct RouteStarterFeature {
         case routeSelector(SelectorFeature.Action)
         
         // Setup actions
-        case startRouteRequested(UserRoute)
-        case locationAuthorizationStatusReceived(UserRoute, CLAuthorizationStatus)
+        case startRouteRequested(ResolvedUserRoute)
+        case locationAuthorizationStatusReceived(ResolvedUserRoute, CLAuthorizationStatus)
         case locationPermissionRequestFinished(CLAuthorizationStatus)
-        case beginRoute(UserRoute)
+        case beginRoute(ResolvedUserRoute)
         case endRoute
         
         case destination(PresentationAction<Destination.Action>)

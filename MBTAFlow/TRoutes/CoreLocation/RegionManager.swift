@@ -12,7 +12,7 @@ import ComposableArchitecture
 class RegionManager: NSObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private var continuation: AsyncStream<JourneyCommand>.Continuation?
-    private var currentStop: Stop?
+    private var currentStop: ResolvedStop?
     
     // Guards against double state events.
     private var lastKnownState: CLRegionState?
@@ -45,7 +45,7 @@ class RegionManager: NSObject, CLLocationManagerDelegate {
      //   locationManager.startMonitoringSignificantLocationChanges()
     }
     
-    func startMonitoring(firstStop:Stop) {
+    func startMonitoring(firstStop:ResolvedStop) {
         self.currentStop = firstStop
         if currentStop != nil{
             registerRegion(for: currentStop!)
@@ -54,7 +54,7 @@ class RegionManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    func registerRegion(for stop: Stop) {
+    func registerRegion(for stop: ResolvedStop) {
         //remove all regions, 1 monitored maximum
         self.currentStop = stop
         self.lastKnownState = nil

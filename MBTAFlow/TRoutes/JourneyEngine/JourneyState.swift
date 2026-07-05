@@ -6,61 +6,61 @@
 //
 
 struct JourneyState: Equatable, Codable {
-    let route: UserRoute
-    let stopSequence: [Stop]
+    let route: ResolvedUserRoute
+    let stopOrder: [ResolvedStop]
+    let legOrder:[ResolvedLeg]
     
     var stopIndex: Int = 0
+    var legIndex:Int = 0
     var movementStatus: MovementStatus = .enRoute
     var predictionState: PredictionState = .notNeeded
     var monitoringMode:MonitoringMode = .underground
     
-    var currentStop: Stop? {
-        guard stopSequence.indices.contains(stopIndex) else {
+    var currentLeg:ResolvedLeg? {
+        guard legOrder.indices.contains(legIndex) else {
             return nil
         }
-        return stopSequence[stopIndex]
+        return legOrder[legIndex]
+    }
+    var currentStop: ResolvedStop? {
+        guard stopOrder.indices.contains(stopIndex) else {
+            return nil
+        }
+        return stopOrder[stopIndex]
     }
     
     var isEndOfJourney: Bool {
-        return stopIndex == stopSequence.count - 1 && movementStatus == .atStop
+        return stopIndex == stopOrder.count - 1 && movementStatus == .atStop
     }
     
-    init(route: UserRoute) {
+    init(route: ResolvedUserRoute) {
         self.route = route
-        var sequence: [Stop] = []
-        
-        for index in route.legs.indices {
-            let isLastLeg = index == route.legs.indices.last
-            var startStop = route.legs[index].startStop
-            var endStop = route.legs[index].endStop
-            
-            startStop.journeyRole = .boarding
-            
-            if isLastLeg {
-                endStop.journeyRole = .final
-            } else {
-                let nextStartStop = route.legs[index + 1].startStop
-                endStop.journeyRole = .transfer(
-                    overlapsNext: endStop.mbtaStopId == nextStartStop.mbtaStopId
-                )
-            }
-            
-            sequence.append(startStop)
-            sequence.append(endStop)
-        }
-        
-        self.stopSequence = sequence
-        self.predictionState = sequence.first.map { .loading(stopId: $0.mbtaStopId) } ?? .notNeeded
+        let stops = route.legs.flatMap(\.stops)
+        self.stopOrder = stops
+        self.legOrder = route.legs
+        self.predictionState = stops.first.map { .loading(stopId: $0.mbtaStopId) } ?? .notNeeded
     }
     
-    mutating func advanceToNextStop() -> Stop? {
+    //determine monitoring mode here? or in journey actions?
+    mutating func advanceToNextStop() -> ResolvedStop? {
         let nextIndex = stopIndex + 1
-        guard stopSequence.indices.contains(nextIndex) else {
+        guard stopOrder.indices.contains(nextIndex) else {
             return nil
         }
 
         stopIndex = nextIndex
-        return stopSequence[stopIndex]
+        return stopOrder[stopIndex]
+    }
+    
+    //
+    mutating func advanceToNextLeg() -> ResolvedLeg? {
+        let nextIndex = legIndex + 1
+        guard legOrder.indices.contains(nextIndex) else {
+            return nil
+        }
+        
+        legIndex = nextIndex
+        return legOrder[legIndex]
     }
 
 }

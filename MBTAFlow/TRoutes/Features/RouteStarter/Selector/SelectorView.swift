@@ -20,7 +20,9 @@ struct SelectorView: View {
         NavigationStack(path: $store.scope(state: \.path, action: \.path)) {
             List {
                 ForEach(store.userRoutes) { userRoute in
-                    NavigationLink(state: RouteReviewFeature.State(route: userRoute)) {
+                    NavigationLink(state: RouteReviewFeature.State(
+                        route: makeUserRouteForEditing(from: userRoute)
+                    )) {
                         HStack {
                             Text(userRoute.name)
 

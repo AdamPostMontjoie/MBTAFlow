@@ -98,8 +98,13 @@ actor JourneyEngine {
     
     //this is what is called to start fresh route
     //This needs to be modified once we start differentiating between streams. 
-    func beginRoute(route:UserRoute) async -> AsyncStream<JourneyUpdate> {
+    func beginRoute(route:ResolvedUserRoute) async -> AsyncStream<JourneyUpdate> {
         let journey = JourneyState(route: route)
+    //    let resolvedRoute = await resolveRouteForUndergroundTracking(route: journey.route)
+    //    let currentLeg = resolvedRoute?.legs.first { leg in
+      //      resolvedLeg(leg, startsAt: leg.startStop.mbtaStopId)
+    //    }
+
         saveActiveJourneyAndPublish(journey)
         switch journey.monitoringMode {
         case .underground:
@@ -194,7 +199,7 @@ actor JourneyEngine {
     }
     
     
-    private func fetchPredictions(for stop: Stop) async {
+    private func fetchPredictions(for stop: ResolvedStop) async {
         do {
             let predictionResponse = try await mbtaClient.fetchTransitTimes(stop)
             
@@ -205,7 +210,7 @@ actor JourneyEngine {
     }
     
 
-    private func savePredictionResult(for stop: Stop, result: Result<[TransitPrediction], Error>) async {
+    private func savePredictionResult(for stop: ResolvedStop, result: Result<[TransitPrediction], Error>) async {
         guard var freshJourney = userDefaultsClient.loadActiveJourney() else { return }
         // Can check against more specific request id guard, but for now ensure new stop wasn't set by another journey command while we awaited change.
         guard freshJourney.currentStop?.mbtaStopId == stop.mbtaStopId else {
@@ -223,16 +228,14 @@ actor JourneyEngine {
                 //heavily gated later, just to test passing
                 if let firstPrediction = predictionResults.first,
                    firstPrediction.tripId != nil {
-                    let resolvedRoute = await resolveRouteForUndergroundTracking(route: freshJourney.route)
-                    let currentLeg = resolvedRoute?.legs.first { leg in
-                        resolvedLeg(leg, startsAt: stop.mbtaStopId)
-                    }
-
-                    if let currentLeg {
-                        await UndergroundManager.shared.setTrackedVehicle(
-                            prediction: firstPrediction,
+                    
+                    if let currentLeg = freshJourney.currentLeg {
+                    await UndergroundManager.shared.setTrackedVehicle(
+                           prediction: firstPrediction,
                             leg: currentLeg
-                        )
+                       )
+                    } else {
+                        return
                     }
                 }
             }

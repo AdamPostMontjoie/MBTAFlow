@@ -50,6 +50,9 @@ enum JourneyAction: Equatable {
                 .fetchPredictions(nextStop),
                 .sendNotification("transfered to \(nextStop.mbtaStopId)")
             ]
+        //handle this
+        case .intermediate:
+            return []
         
         case .final:
             return [.sendNotification("entered \(stop.mbtaStopId)")]
@@ -90,7 +93,9 @@ enum JourneyAction: Equatable {
                 .fetchPredictions(nextStop),
                 .sendNotification("left \(stop.mbtaStopId)")
             ]
-        
+        //handle this
+        case .intermediate:
+            return []
         case .final:
             return [
                 .endRoute,
@@ -101,8 +106,9 @@ enum JourneyAction: Equatable {
 }
 
 enum JourneyEffect: Equatable {
-    case registerRegion(Stop)
-    case fetchPredictions(Stop)
+    case registerRegion(ResolvedStop) // rename start monitoring for?
+    case fetchPredictions(ResolvedStop)
+    case switchMonitoringMode(MonitoringMode)
     case sendNotification(String)
     case endRoute
 }
