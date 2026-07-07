@@ -8,11 +8,12 @@
 import ComposableArchitecture
 import Foundation
 import UserNotifications
+import UIKit
 
 struct NotificationsClient {
     var requestAuthorization: @Sendable () async -> Void
-    var debugStringNotification: @Sendable (String) async -> Void
-    var setDevMode: @Sendable (Bool) -> Void
+    var debugNotification: @Sendable (String) async -> Void
+    var userNotification:@Sendable (String) async -> Void
 }
 
 extension NotificationsClient: DependencyKey {
@@ -24,9 +25,8 @@ extension NotificationsClient: DependencyKey {
                 print("Failed to request notification authorization: \(error)")
             }
         },
-        debugStringNotification: { log in
+        debugNotification: { log in
             guard DebugAvailability.isDebugActive else {
-                print("🔕 Debug Notif Suppressed: \(log)")
                 return
             }
             print("sening notification")
@@ -46,13 +46,36 @@ extension NotificationsClient: DependencyKey {
             
             do {
                 try await UNUserNotificationCenter.current().add(request)
-                print("🔔 Debug Notif Fired: \(log)")
             } catch {
-                print("❌ Failed to fire debug notif: \(error)")
+                print("Failed to fire debug notif: \(error)")
             }
         },
-        setDevMode: { enabled in
-            UserDefaults.standard.set(enabled, forKey: DebugAvailability.isDebugEnabledStorageKey)
+        userNotification: { message in
+            guard !DebugAvailability.isDebugActive else {
+                    return
+                }
+
+            guard await UIApplication.shared.applicationState == .background else {
+                return
+            }
+            
+            // Construct and present the user-facing alert notification
+            let content = UNMutableNotificationContent()
+            content.title = "MBTAFlow Alert"
+            content.body = message
+            content.sound = .default
+            
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: nil
+            )
+            
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+            } catch {
+                print("Failed to fire user notif: \(error)")
+            }
         }
     )
 

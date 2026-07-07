@@ -25,12 +25,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
         Task {
-            await NotificationsClient.liveValue.debugStringNotification("Memory warning received")
+            await NotificationsClient.liveValue.debugNotification("Memory warning received")
         }
     }
     func applicationWillTerminate(_ application: UIApplication) {
         Task {
-            await NotificationsClient.liveValue.debugStringNotification("App will terminate")
+            await NotificationsClient.liveValue.debugNotification("App will terminate")
         }
     }
 }

@@ -50,6 +50,14 @@ struct RouteStarterView: View {
                         action: \.routeSelector
                     )
                 )
+                .sheet(
+                    item: $store.scope(
+                        state: \.destination?.userSettings,
+                        action: \.destination.userSettings
+                    )
+                ) { userSettingsStore in
+                    UserSettingsView(store: userSettingsStore)
+                }
             }
             .navigationTitle("Routes")
             .toolbar(store.isActiveJourneyPresented ? .hidden : .visible, for: .navigationBar)
@@ -73,26 +81,18 @@ struct RouteStarterView: View {
             // Applying the animation to the VStack ensures the list is smoothly pushed down
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.isActiveJourneyPresented)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.isDebugActive)
+            .sheet(
+                item: $store.scope(
+                    state: \.destination?.locationAlert,
+                    action: \.destination.locationAlert
+                )
+            ) { locationAlertStore in
+                LocationAlertView(store: locationAlertStore)
+                    // Prevents the user from swiping the sheet away without making a choice
+                    .interactiveDismissDisabled()
+            }
         } destination: { store in
             RouteReviewView(store: store)
-        }
-        .sheet(
-            item: $store.scope(
-                state: \.destination?.locationAlert,
-                action: \.destination.locationAlert
-            )
-        ) { locationAlertStore in
-            LocationAlertView(store: locationAlertStore)
-                // Prevents the user from swiping the sheet away without making a choice
-                .interactiveDismissDisabled()
-        }
-        .sheet(
-            item: $store.scope(
-                state: \.destination?.userSettings,
-                action: \.destination.userSettings
-            )
-        ) { userSettingsStore in
-            UserSettingsView(store: userSettingsStore)
         }
         .fullScreenCover(
             item: $store.scope(
