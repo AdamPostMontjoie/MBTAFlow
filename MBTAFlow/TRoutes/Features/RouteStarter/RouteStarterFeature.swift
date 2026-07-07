@@ -23,18 +23,35 @@ struct RouteStarterFeature {
                 // without allowing child mutations.
             }
         }
+        var debugDashboardDisplay:DebugDashboardFeature.State {
+            get {
+                DebugDashboardFeature.State(journey: activeJourney)
+            }
+            set {
+                // Intentionally blank to satisfy WritableKeyPath requirement
+                // without allowing child mutations.
+            }
+        }
         var routeSelector = SelectorFeature.State()
         var isActiveJourneyPresented = false
         var activeJourney: JourneyState?
+        var isDebugAvailable = DebugAvailability.current
+        @Shared(.isDebugEnabled) var isDebugEnabled = true
         // Holds route while user tries to setup location permissions.
         var pendingRoute: ResolvedUserRoute?
         
         @Presents var destination: Destination.State?
+
+        var isDebugActive: Bool {
+            isDebugAvailable && isDebugEnabled
+        }
     }
     
     enum Action: Equatable {
         case activeJourneyDisplay(ActiveJourneyDisplayFeature.Action)
+        case debugDashboardDisplay(DebugDashboardFeature.Action)
         case onCreateButtonTapped
+        case onSettingsButtonTapped
         case routeSelector(SelectorFeature.Action)
         
         // Setup actions
@@ -61,6 +78,9 @@ struct RouteStarterFeature {
         Scope(state: \.activeJourneyDisplay, action: \.activeJourneyDisplay) {
             ActiveJourneyDisplayFeature()
         }
+        Scope(state: \.debugDashboardDisplay, action: \.debugDashboardDisplay) {
+            DebugDashboardFeature()
+        }
         Scope(state: \.routeSelector, action: \.routeSelector) {
             SelectorFeature()
         }
@@ -69,7 +89,9 @@ struct RouteStarterFeature {
             case .onCreateButtonTapped:
                 state.destination = .createRoute(CreateRouteFeature.State())
                 return .none
-
+            case .onSettingsButtonTapped:
+                state.destination = .userSettings(UserSettingsFeature.State())
+                return .none
             case .destination(.presented(.createRoute(.delegate(.routeSaved)))):
                 state.destination = nil
                 return .send(.routeSelector(.fetchRoutesFromDisk))
@@ -210,7 +232,7 @@ struct RouteStarterFeature {
                     await endRoute()
                 }
 
-            case .activeJourneyDisplay, .routeSelector, .destination:
+            case .activeJourneyDisplay, .debugDashboardDisplay, .routeSelector, .destination:
                 return .none
             }
         }
@@ -224,6 +246,7 @@ extension RouteStarterFeature {
         // Standard TCA Alert (for rate limits, timeouts, etc.)
         case alert(AlertState<RouteStarterFeature.Action.Alert>)
         case createRoute(CreateRouteFeature)
+        case userSettings(UserSettingsFeature)
         case locationAlert(LocationAlertFeature)
     }
 }

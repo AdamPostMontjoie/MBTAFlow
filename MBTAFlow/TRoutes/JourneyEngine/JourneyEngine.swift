@@ -110,6 +110,8 @@ actor JourneyEngine {
         
         let journey = JourneyState(route: route)
         saveActiveJourneyAndPublish(journey)
+        let destinationName = route.legs.last?.endStop.stopName ?? "your destination"
+        await sendNotification(debug: "Tracking started", user: "Tracking started for your trip to \(destinationName)")
         if let firstStop = journey.currentStop {
             if firstStop.monitoringMode == .surface {
                 await startListeningToLocationEvents()
@@ -157,7 +159,8 @@ actor JourneyEngine {
         case let .approachingStop(stopId: id):
             if currentJourney.movementStatus == .enRoute,
                currentJourney.currentStop?.mbtaStopId == id {
-                await sendNotification(message: "Approaching \(id)")
+                let userMessage = "Approaching \(currentJourney.currentStop?.stopName ?? id)"
+                await sendNotification(debug: "Approaching \(id)", user: userMessage)
             }
         case let .missedVehicle(stopId: id):
             print("JourneyEngine missedVehicle for \(id)")
@@ -182,6 +185,11 @@ actor JourneyEngine {
             
         case .monitoringFailed(stopId: let stopId, error: let error):
             print("monitoring failed for \(stopId): \(error)")
+            //Possibly yield in UG mode as well, Transit does on their app
+            //Perhaps if we become less reliant on api only in that mode
+            let isSurface = currentJourney.monitoringMode == .surface
+            let userMessage = (isSurface && error == .locationUnknown) ? "GPS signal lost or inaccurate. Tracking may be degraded." : nil
+            await sendNotification(debug: "monitoring failed for \(stopId): \(error)", user: userMessage)
         }
     }
     
@@ -212,6 +220,8 @@ actor JourneyEngine {
     
     private func handleMissedVehicle(stopId: String) async {
         guard let journey = userDefaultsClient.loadActiveJourney() else { return }
+        
+        await sendNotification(debug: "Missed vehicle at \(stopId)", user: "Looks like you missed this train. Recalculating next departure...")
         
         trackedVehicleId = nil
         trackedTripId = nil
@@ -264,9 +274,9 @@ actor JourneyEngine {
                 print("JourneyEngine effect: fetchTransferPredictions for \(stop.mbtaStopId)")
                 await fetchTransferPredictions(for: stop)
                 
-            case let .sendNotification(message):
-                print("JourneyEngine effect: sendNotification - \(message)")
-                await sendNotification(message: message)
+            case let .sendNotification(debug, user):
+                print("JourneyEngine effect: sendNotification - \(debug)")
+                await sendNotification(debug: debug, user: user)
             case let .switchMonitoringMode(mode):
                await switchMonitoringMode(newMode:mode)
                 
@@ -417,9 +427,8 @@ actor JourneyEngine {
     private func fetchPredictionsAndSelectVehicle(stop:ResolvedStop) async -> TransitPrediction? {
         do {
             let predictionResponse = try await mbtaClient.fetchTransitTimes(stop)
-            guard let selectedPrediction = predictionResponse.first,
-                  let tripId = selectedPrediction.tripId,
-                  selectedPrediction.vehicleId != nil else {
+            guard let selectedPrediction = predictionResponse.first(where: { $0.vehicleId != nil && $0.tripId != nil }),
+                  let tripId = selectedPrediction.tripId else {
                 print("JourneyEngine no selected prediction for \(stop.mbtaStopId)")
                 return nil
             }
@@ -504,8 +513,11 @@ actor JourneyEngine {
         journeyUpdateContinuation = nil
     }
     
-    func sendNotification(message:String) async{
-        await notificationsClient.debugStringNotification(message)
+    func sendNotification(debug: String, user: String? = nil) async {
+        await notificationsClient.debugNotification(debug)
+        if let user = user {
+            await notificationsClient.userNotification(user)
+        }
     }
     
     func endRoute() async {

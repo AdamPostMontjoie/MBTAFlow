@@ -65,7 +65,8 @@ enum JourneyAction: Equatable {
                 nextStop,
                 previousMonitoringMode: previousMonitoringMode,
                 fetchPredictions: true,
-                message: "transfered to \(nextStop.mbtaStopId)"
+                message: "transfered to \(nextStop.mbtaStopId)",
+                userMessage: "Transfer here for the \(nextStop.mbtaRouteId)"
             )
         case .intermediate:
             state.predictionState = .notNeeded
@@ -83,7 +84,7 @@ enum JourneyAction: Equatable {
             return effects
             
         case .final:
-            return [.sendNotification("entered \(stop.mbtaStopId)")]
+            return [.sendNotification("entered \(stop.mbtaStopId)", user: "You have arrived at your destination")]
         }
     }
     
@@ -217,7 +218,8 @@ enum JourneyAction: Equatable {
         previousMonitoringMode: MonitoringMode,
         fetchPredictions: Bool,
         transferPredictionStop: ResolvedStop? = nil,
-        message: String
+        message: String,
+        userMessage: String? = nil
     ) -> [JourneyEffect] {
         var effects: [JourneyEffect] = []
         if nextStop.monitoringMode != previousMonitoringMode {
@@ -230,7 +232,7 @@ enum JourneyAction: Equatable {
         if let transferPredictionStop {
             effects.append(.fetchTransferPredictions(transferPredictionStop))
         }
-        effects.append(.sendNotification(message))
+        effects.append(.sendNotification(message, user: userMessage))
         return effects
     }
 
@@ -247,6 +249,6 @@ enum JourneyEffect: Equatable {
     case fetchPredictions(ResolvedStop)
     case fetchTransferPredictions(ResolvedStop)
     case switchMonitoringMode(MonitoringMode)
-    case sendNotification(String)
+    case sendNotification(_ debug: String, user: String? = nil)
     case endRoute
 }
