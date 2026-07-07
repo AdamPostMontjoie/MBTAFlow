@@ -6,26 +6,35 @@
 //
 
 import ComposableArchitecture
+import Foundation
 
 @ObservableState
 struct ApplicationState: Equatable {
     var isDebugAvailable = DebugAvailability.current
-    @Shared(.isDebugEnabled) var isDebugEnabled = false
+    @Shared(.isDebugEnabled) var isDebugEnabled = true
+
+    var isDebugActive: Bool {
+        isDebugAvailable && isDebugEnabled
+    }
 
     var debug: DebugState {
         DebugState(
             isDebugAvailable: isDebugAvailable,
-            isDebugEnabled: isDebugEnabled
+            isDebugEnabled: isDebugEnabled,
+            isDebugActive: isDebugActive
         )
     }
 }
 
 struct DebugState: Equatable {
     var isDebugAvailable = false
-    var isDebugEnabled = false
+    var isDebugEnabled = true
+    var isDebugActive = false
 }
 
 enum DebugAvailability {
+    static let isDebugEnabledStorageKey = "debugIsEnabled"
+
     static var current: Bool {
         #if DEBUG
         return true
@@ -36,10 +45,15 @@ enum DebugAvailability {
         return receiptURL.lastPathComponent == "sandboxReceipt"
         #endif
     }
+
+    static var isDebugActive: Bool {
+        let storedValue = UserDefaults.standard.object(forKey: isDebugEnabledStorageKey) as? Bool
+        return current && (storedValue ?? true)
+    }
 }
 
 extension SharedReaderKey where Self == AppStorageKey<Bool> {
     static var isDebugEnabled: Self {
-        appStorage("debug.isEnabled")
+        appStorage(DebugAvailability.isDebugEnabledStorageKey)
     }
 }

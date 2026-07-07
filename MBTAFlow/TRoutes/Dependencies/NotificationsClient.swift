@@ -6,6 +6,7 @@
 //
 
 import ComposableArchitecture
+import Foundation
 import UserNotifications
 
 struct NotificationsClient {
@@ -24,7 +25,7 @@ extension NotificationsClient: DependencyKey {
             }
         },
         debugStringNotification: { log in
-            guard UserDefaultsClient.liveValue.areDebugNotificationsEnabled() else {
+            guard DebugAvailability.isDebugActive else {
                 print("🔕 Debug Notif Suppressed: \(log)")
                 return
             }
@@ -51,7 +52,7 @@ extension NotificationsClient: DependencyKey {
             }
         },
         setDevMode: { enabled in
-            UserDefaultsClient.liveValue.setDebugNotifications(enabled)
+            UserDefaults.standard.set(enabled, forKey: DebugAvailability.isDebugEnabledStorageKey)
         }
     )
 

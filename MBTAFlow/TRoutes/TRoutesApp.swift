@@ -48,7 +48,6 @@ struct TRoutes: App {
     init() {
         // Attach the delegate on boot
         UNUserNotificationCenter.current().delegate = notificationDelegate
-        UserDefaultsClient.liveValue.setDebugNotifications(true)
     }
     
     static let store = Store(initialState: RootFeature.State()) {
@@ -63,4 +62,3 @@ struct TRoutes: App {
         
     }
 }
-

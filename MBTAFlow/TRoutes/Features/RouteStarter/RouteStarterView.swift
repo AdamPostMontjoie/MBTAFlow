@@ -43,7 +43,15 @@ struct RouteStarterView: View {
             .navigationTitle("Routes")
             .toolbar(store.isActiveJourneyPresented ? .hidden : .visible, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        store.send(.onSettingsButtonTapped)
+                    } label : {
+                        Image(systemName: "gear")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
+                    
                     Button {
                         store.send(.onCreateButtonTapped)
                     } label: {
@@ -65,6 +73,14 @@ struct RouteStarterView: View {
             LocationAlertView(store: locationAlertStore)
                 // Prevents the user from swiping the sheet away without making a choice
                 .interactiveDismissDisabled()
+        }
+        .sheet(
+            item: $store.scope(
+                state: \.destination?.userSettings,
+                action: \.destination.userSettings
+            )
+        ) { userSettingsStore in
+            UserSettingsView(store: userSettingsStore)
         }
         .fullScreenCover(
             item: $store.scope(

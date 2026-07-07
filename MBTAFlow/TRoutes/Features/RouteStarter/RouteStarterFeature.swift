@@ -35,6 +35,7 @@ struct RouteStarterFeature {
     enum Action: Equatable {
         case activeJourneyDisplay(ActiveJourneyDisplayFeature.Action)
         case onCreateButtonTapped
+        case onSettingsButtonTapped
         case routeSelector(SelectorFeature.Action)
         
         // Setup actions
@@ -69,7 +70,9 @@ struct RouteStarterFeature {
             case .onCreateButtonTapped:
                 state.destination = .createRoute(CreateRouteFeature.State())
                 return .none
-
+            case .onSettingsButtonTapped:
+                state.destination = .userSettings(UserSettingsFeature.State())
+                return .none
             case .destination(.presented(.createRoute(.delegate(.routeSaved)))):
                 state.destination = nil
                 return .send(.routeSelector(.fetchRoutesFromDisk))
@@ -224,6 +227,7 @@ extension RouteStarterFeature {
         // Standard TCA Alert (for rate limits, timeouts, etc.)
         case alert(AlertState<RouteStarterFeature.Action.Alert>)
         case createRoute(CreateRouteFeature)
+        case userSettings(UserSettingsFeature)
         case locationAlert(LocationAlertFeature)
     }
 }
