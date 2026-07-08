@@ -37,6 +37,8 @@ actor JourneyEngine {
     @Dependency(\.mbtaClient) var mbtaClient
     @Dependency(\.databaseClient) var databaseClient
     
+    private let positionReconciler = PositionReconciler()
+    
     private var journeyUpdateContinuation: AsyncStream<JourneyUpdate>.Continuation?
     private var locationListeningTask: Task<Void, Never>?
     private var undergroundListeningTask: Task<Void, Never>?
@@ -61,16 +63,58 @@ actor JourneyEngine {
         guard let journey = userDefaultsClient.loadActiveJourney(),
               let currentStop = journey.currentStop
         else { return }
-
-        switch journey.monitoringMode {
-        case .surface:
-            await startListeningToLocationEvents()
-            startPredictionRefreshTimer()
-        case .underground:
-            await startListeningToUndergroundEvents()
+        
+        // Restore in-memory caching variables
+        self.trackedVehicleId = journey.trackedVehicleId
+        self.trackedTripId = journey.trackedTripId
+        self.trackedBoardingStopId = journey.trackedBoardingStopId
+        
+        // Start location updates briefly to get a location anchor if needed
+        var location = await RegionManager.shared.currentDeviceLocation
+        if location == nil {
+            print("JourneyEngine: Location is nil on boot. Waiting 1.5 seconds for GPS warm up...")
+            try? await Task.sleep(for: .seconds(1.5))
+            location = await RegionManager.shared.currentDeviceLocation
         }
         
-        await monitorNextStop(stop: currentStop)
+        guard let location = location else {
+            print("JourneyEngine: Unable to get location for reconciliation. Terminating journey.")
+            await endRouteWithReconciliationFailure()
+            return
+        }
+        
+        do {
+            let reconciledJourney = try await positionReconciler.reconcile(
+                journey: journey,
+                currentLocation: location,
+                trackedVehicleId: trackedVehicleId
+            )
+            
+            // Save reconciled state and publish
+            saveActiveJourneyAndPublish(reconciledJourney)
+            print("JourneyEngine: Reconciled journey state successfully. Resuming tracking.")
+            
+            switch reconciledJourney.monitoringMode {
+            case .surface:
+                await startListeningToLocationEvents()
+                startPredictionRefreshTimer()
+            case .underground:
+                await startListeningToUndergroundEvents()
+            }
+            
+            if let freshStop = reconciledJourney.currentStop {
+                await monitorNextStop(stop: freshStop)
+            }
+            
+        } catch {
+            print("JourneyEngine: PositionReconciler failed to reconcile journey state. Terminating journey. Error: \(error)")
+            await endRouteWithReconciliationFailure()
+        }
+    }
+    
+    private func endRouteWithReconciliationFailure() async {
+        await endRoute()
+        journeyUpdateContinuation?.yield(.journeyTerminated(.trackingReconciliationFailed))
     }
     
     func startListeningToLocationEvents() async {
@@ -111,11 +155,22 @@ actor JourneyEngine {
         await RegionManager.shared.requestLocationAuthorization()
     }
     
+    func beginRouteStream() async -> AsyncStream<JourneyUpdate> {
+        let (stream, continuation) = AsyncStream<JourneyUpdate>.makeStream()
+        self.journeyUpdateContinuation = continuation
+        
+        // Hydrate UI immediately if there is a saved journey running
+        if let journey = userDefaultsClient.loadActiveJourney() {
+            continuation.yield(.activeJourneyChanged(journey))
+        }
+        
+        return stream
+    }
+    
     //this is what is called to start fresh route
     //This needs to be modified once we start differentiating between streams. 
     func beginRoute(route:ResolvedUserRoute) async -> AsyncStream<JourneyUpdate> {
-        let (stream, continuation) = AsyncStream<JourneyUpdate>.makeStream()
-        self.journeyUpdateContinuation = continuation
+        let stream = await beginRouteStream()
         
         let journey = JourneyState(route: route)
         saveActiveJourneyAndPublish(journey)
@@ -560,8 +615,13 @@ actor JourneyEngine {
 
     
     private func saveActiveJourneyAndPublish(_ journey: JourneyState) {
-        userDefaultsClient.saveActiveJourney(journey)
-        journeyUpdateContinuation?.yield(.activeJourneyChanged(journey))
+        var journeyToSave = journey
+        journeyToSave.trackedVehicleId = self.trackedVehicleId
+        journeyToSave.trackedTripId = self.trackedTripId
+        journeyToSave.trackedBoardingStopId = self.trackedBoardingStopId
+        
+        userDefaultsClient.saveActiveJourney(journeyToSave)
+        journeyUpdateContinuation?.yield(.activeJourneyChanged(journeyToSave))
     }
     
     private func clearActiveJourneyAndPublish() {

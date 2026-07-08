@@ -103,5 +103,14 @@ struct RouteStarterView: View {
             CreateRouteView(store: createRouteStore)
                 .interactiveDismissDisabled(true)
         }
+        .alert(
+            $store.scope(
+                state: \.destination?.alert,
+                action: \.destination.alert
+            )
+        )
+        .task {
+            await store.send(.task).finish()
+        }
     }
 }

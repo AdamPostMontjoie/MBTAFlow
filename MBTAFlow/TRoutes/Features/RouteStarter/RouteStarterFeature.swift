@@ -64,6 +64,11 @@ struct RouteStarterFeature {
         case destination(PresentationAction<Destination.Action>)
         
         case journeyUpdateReceived(JourneyUpdate)
+        case task
+        
+        enum Alert: Equatable {
+            case dismissReconciliationAlert
+        }
     }
     
     @Dependency(\.journeyClient) var journeyClient
@@ -214,6 +219,15 @@ struct RouteStarterFeature {
                     }
                 }
 
+             case .task:
+                let beginRouteStream = journeyClient.beginRouteStream
+                return .run { send in
+                    let stream = await beginRouteStream()
+                    for await update in stream {
+                        await send(.journeyUpdateReceived(update))
+                    }
+                }
+
             case let .journeyUpdateReceived(update):
                 switch update {
                 case let .activeJourneyChanged(journey):
@@ -222,6 +236,10 @@ struct RouteStarterFeature {
                 case let .journeyTerminated(reason):
                     if reason == .locationAuthorizationDenied {
                         state.destination = .locationAlert(.init(mode: .routeInterrupted))
+                    } else if reason == .trackingReconciliationFailed {
+                        state.activeJourney = nil
+                        state.isActiveJourneyPresented = false
+                        state.destination = .alert(.trackingReconciliationFailed)
                     }
                     return .none
                 }
@@ -232,6 +250,10 @@ struct RouteStarterFeature {
                 return .run { _ in
                     await endRoute()
                 }
+
+            case .destination(.presented(.alert(.dismissReconciliationAlert))):
+                state.destination = nil
+                return .none
 
             case .activeJourneyDisplay, .debugDashboardDisplay, .routeSelector, .destination:
                 return .none
@@ -247,8 +269,23 @@ extension RouteStarterFeature {
         case createRoute(CreateRouteFeature)
         case userSettings(UserSettingsFeature)
         case locationAlert(LocationAlertFeature)
+        case alert(AlertState<RouteStarterFeature.Action.Alert>)
     }
 }
 
 extension RouteStarterFeature.Destination.State: Equatable {}
 extension RouteStarterFeature.Destination.Action: Equatable {}
+
+extension AlertState where Action == RouteStarterFeature.Action.Alert {
+    static var trackingReconciliationFailed: Self {
+        Self {
+            TextState("Tracking Lost")
+        } actions: {
+            ButtonState(action: .dismissReconciliationAlert) {
+                TextState("OK")
+            }
+        } message: {
+            TextState("We lost connection to your vehicle while the app was suspended and could not reconcile your position. Please restart your journey.")
+        }
+    }
+}

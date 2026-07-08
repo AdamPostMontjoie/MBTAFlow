@@ -103,6 +103,10 @@ class RegionManager: NSObject, CLLocationManagerDelegate {
     
     static let shared = RegionManager()
     
+    var currentDeviceLocation: CLLocation? {
+        return locationManager.location
+    }
+    
     override init() {
         super.init()
         locationManager.delegate = self
