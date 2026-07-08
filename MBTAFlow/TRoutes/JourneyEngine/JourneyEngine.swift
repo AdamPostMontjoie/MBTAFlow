@@ -31,6 +31,8 @@ actor JourneyEngine {
     ///Singleton
     static let shared = JourneyEngine()
     
+    // MARK: - Dependencies & Properties
+    
     @Dependency(\.userDefaultsClient) var userDefaultsClient
     @Dependency(\.journeyClient) var journeyClient
     @Dependency(\.notificationsClient) var notificationsClient
@@ -57,6 +59,8 @@ actor JourneyEngine {
         let timestamp: Date
     }
     private var surfaceDepartureQueue: [RecentlyDepartedVehicle] = []
+    
+    // MARK: - Lifecycle & Reconciliation
     
     //add state reconciliation checks
     func restoreActiveJourneyIfNeeded() async {
@@ -113,9 +117,11 @@ actor JourneyEngine {
     }
     
     private func endRouteWithReconciliationFailure() async {
-        await endRoute()
         journeyUpdateContinuation?.yield(.journeyTerminated(.trackingReconciliationFailed))
+        await endRoute()
     }
+    
+    // MARK: - Stream Listeners
     
     func startListeningToLocationEvents() async {
         guard locationListeningTask == nil else { return }
@@ -189,6 +195,8 @@ actor JourneyEngine {
         
         return stream
     }
+    
+    // MARK: - Action Validation (Inputs)
     
     //this will handle both widget and in app i think
     func manualEventValidator(_ event:ManualEvent) async{
@@ -336,6 +344,8 @@ actor JourneyEngine {
         await fetchPredictions(for: stop)
     }
     
+    // MARK: - Journey Effects (Outputs)
+    
     //ask for more time in background?
     private func handleJourneyAction(_ action: JourneyAction) async {
         guard var currentJourney = userDefaultsClient.loadActiveJourney() else { return }
@@ -438,6 +448,8 @@ actor JourneyEngine {
         }
         
     }
+    
+    // MARK: - MBTA API & Predictions
     
     func manualRefreshPredictions() async {
         guard var currentJourney = userDefaultsClient.loadActiveJourney(),
@@ -614,6 +626,8 @@ actor JourneyEngine {
     
 
     
+    // MARK: - State Publishing Helpers
+    
     private func saveActiveJourneyAndPublish(_ journey: JourneyState) {
         var journeyToSave = journey
         journeyToSave.trackedVehicleId = self.trackedVehicleId
@@ -649,6 +663,8 @@ actor JourneyEngine {
         await RegionManager.shared.killManager()
         await UndergroundManager.shared.killManager()
     }
+    
+    // MARK: - Timers
     
     // MARK: - Prediction Refresh Timer (surface mode)
     

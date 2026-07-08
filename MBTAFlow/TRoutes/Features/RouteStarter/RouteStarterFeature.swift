@@ -64,7 +64,6 @@ struct RouteStarterFeature {
         case destination(PresentationAction<Destination.Action>)
         
         case journeyUpdateReceived(JourneyUpdate)
-        case task
         
         enum Alert: Equatable {
             case dismissReconciliationAlert
@@ -214,15 +213,6 @@ struct RouteStarterFeature {
                 let beginRoute = journeyClient.beginRoute
                 return .run { send in
                     let stream = await beginRoute(route)
-                    for await update in stream {
-                        await send(.journeyUpdateReceived(update))
-                    }
-                }
-
-             case .task:
-                let beginRouteStream = journeyClient.beginRouteStream
-                return .run { send in
-                    let stream = await beginRouteStream()
                     for await update in stream {
                         await send(.journeyUpdateReceived(update))
                     }

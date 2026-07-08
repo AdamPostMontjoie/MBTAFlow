@@ -109,8 +109,5 @@ struct RouteStarterView: View {
                 action: \.destination.alert
             )
         )
-        .task {
-            await store.send(.task).finish()
-        }
     }
 }
