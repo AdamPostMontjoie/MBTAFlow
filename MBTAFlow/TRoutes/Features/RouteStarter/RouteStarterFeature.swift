@@ -218,17 +218,14 @@ struct RouteStarterFeature {
             
             case let .beginRoute(route):
                 let beginRoute = journeyClient.beginRoute
-                return .run { send in
-                    let stream = await beginRoute(route)
-                    for await update in stream {
-                        await send(.journeyUpdateReceived(update))
-                    }
+                return .run { _ in
+                    await beginRoute(route)
                 }
 
             case .startListeningToJourneyUpdates:
-                let beginRouteStream = journeyClient.beginRouteStream
+                let makeJourneyUpdateStream = journeyClient.makeJourneyUpdateStream
                 return .run { send in
-                    let stream = await beginRouteStream()
+                    let stream = await makeJourneyUpdateStream()
                     for await update in stream {
                         await send(.journeyUpdateReceived(update))
                     }

@@ -160,7 +160,8 @@ actor JourneyEngine {
         await RegionManager.shared.requestLocationAuthorization()
     }
     
-    func beginRouteStream() async -> AsyncStream<JourneyUpdate> {
+    ///Streams active journey to UI
+    func makeJourneyUpdateStream() async -> AsyncStream<JourneyUpdate> {
         let (stream, continuation) = AsyncStream<JourneyUpdate>.makeStream()
         self.journeyUpdateContinuation = continuation
         
@@ -172,11 +173,8 @@ actor JourneyEngine {
         return stream
     }
     
-    //this is what is called to start fresh route
-    //This needs to be modified once we start differentiating between streams. 
-    func beginRoute(route:ResolvedUserRoute) async -> AsyncStream<JourneyUpdate> {
-        let stream = await beginRouteStream()
-        
+    ///Starts the route
+    func beginRoute(route:ResolvedUserRoute) async {
         let journey = JourneyState(route: route)
         saveActiveJourneyAndPublish(journey)
         let destinationName = route.legs.last?.endStop.stopName ?? "your destination"
@@ -191,8 +189,6 @@ actor JourneyEngine {
             await monitorNextStop(stop: firstStop)
             await self.fetchPredictions(for: firstStop)
         }
-        
-        return stream
     }
     
     // MARK: - Action Validation (Inputs)
