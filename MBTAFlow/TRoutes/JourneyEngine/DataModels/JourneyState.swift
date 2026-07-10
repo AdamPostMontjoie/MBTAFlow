@@ -24,6 +24,8 @@ struct JourneyState: Equatable, Codable {
     var trackedTripId: String? = nil
     var trackedBoardingStopId: String? = nil
     
+    var arrivedTrains: [ArrivedTrain] = []
+    
     var timeSaved: Date = Date()
     
     var currentLeg:ResolvedLeg? {
@@ -90,6 +92,7 @@ struct JourneyState: Equatable, Codable {
         case trackedTripId
         case trackedBoardingStopId
         case timeSaved
+        case arrivedTrains
     }
     
     init(from decoder: Decoder) throws {
@@ -108,6 +111,7 @@ struct JourneyState: Equatable, Codable {
         trackedTripId = try container.decodeIfPresent(String.self, forKey: .trackedTripId)
         trackedBoardingStopId = try container.decodeIfPresent(String.self, forKey: .trackedBoardingStopId)
         timeSaved = try container.decodeIfPresent(Date.self, forKey: .timeSaved) ?? Date()
+        arrivedTrains = try container.decodeIfPresent([ArrivedTrain].self, forKey: .arrivedTrains) ?? []
     }
     
     //determine monitoring mode here? or in journey actions?
@@ -173,4 +177,10 @@ enum MovementStatus: Codable {
 enum MonitoringMode:Equatable, Codable {
     case underground
     case surface
+}
+
+struct ArrivedTrain: Equatable, Codable {
+    let vehicleId: String
+    let tripId: String
+    let arrivedAt: Date
 }

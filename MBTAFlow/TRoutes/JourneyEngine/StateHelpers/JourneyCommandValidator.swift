@@ -4,8 +4,7 @@ import Foundation
 struct JourneyCommandValidator {
     static func reduce(
         state: inout JourneyState,
-        command: JourneyCommand,
-        surfaceQueue: [JourneyEngine.RecentlyDepartedVehicle]
+        command: JourneyCommand
     ) -> [JourneyEffect] {
         switch command {
         case let .executeEntry(stopId: id):
@@ -22,16 +21,12 @@ struct JourneyCommandValidator {
                 print("JourneyEngine accepted exit \(id)")
                 
                 var effects: [JourneyEffect] = []
-                
-                if state.monitoringMode == .surface {
-                    let recentVehicles = surfaceQueue.filter { Date().timeIntervalSince($0.timestamp) <= 60 }
-                    if let recent = recentVehicles.last {
-                        print("JourneyEngine: Surface geofence exit matched with recently departed vehicle \(recent.vehicleId). Reconciling.")
-                        effects.append(.updateTrackedVehicle(vehicleId: recent.vehicleId, tripId: recent.tripId))
-                        effects.append(.refreshTripTrackingData(tripId: recent.tripId))
-                    } else {
-                        print("JourneyEngine: Surface geofence exit with no recently departed vehicles in grace period. Keeping current tracked vehicle.")
-                    }
+                if let recent = state.arrivedTrains.last {
+                    print("JourneyEngine: Exit matched with arrived train \(recent.vehicleId).")
+                    effects.append(.updateTrackedVehicle(vehicleId: recent.vehicleId, tripId: recent.tripId))
+                    effects.append(.refreshTripPath(tripId: recent.tripId))
+                } else {
+                    print("JourneyEngine: Exit with no arrived trains in queue. Keeping current tracked vehicle.")
                 }
                 
                 effects.append(contentsOf: JourneyAction.departFromStop.reduce(state: &state))

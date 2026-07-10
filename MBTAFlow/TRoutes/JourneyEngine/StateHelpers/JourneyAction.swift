@@ -231,5 +231,5 @@ enum JourneyEffect: Equatable {
     
     case updateTrackedVehicle(vehicleId: String?, tripId: String?)
     case resetTrackingState
-    case refreshTripTrackingData(tripId: String)
+    case refreshTripPath(tripId: String)
 }
