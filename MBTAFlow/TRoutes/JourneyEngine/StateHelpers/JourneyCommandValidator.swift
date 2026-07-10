@@ -1,5 +1,6 @@
 import Foundation
 
+///Determines JourneyCommand Validity, Runs JourneyAction, and emits JourneyEffects
 struct JourneyCommandValidator {
     static func reduce(
         state: inout JourneyState,

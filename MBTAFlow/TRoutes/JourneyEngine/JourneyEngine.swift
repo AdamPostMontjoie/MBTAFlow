@@ -47,6 +47,8 @@ actor JourneyEngine {
     private var locationListeningTask: Task<Void, Never>?
     private var undergroundListeningTask: Task<Void, Never>?
     private var predictionRefreshTask: Task<Void, Never>?
+    private var loadingTask: Task<Void, Never>?
+    private var lastManualRefresh: Date?
     
     //underground fields
     private var matchedPath:MatchedLegPath?
@@ -364,8 +366,16 @@ actor JourneyEngine {
         guard var currentJourney = userDefaultsClient.loadActiveJourney(),
               let currentStop = currentJourney.currentStop else { return }
 
+        // Debounce: prevent spamming refresh
+        let now = Date()
+        if let last = lastManualRefresh, now.timeIntervalSince(last) < 2.0 {
+            return
+        }
+        lastManualRefresh = now
+
         currentJourney.predictionState = .loading(stopId: currentStop.mbtaStopId)
         saveActiveJourneyAndPublish(currentJourney)
+
         await fetchPredictions(for: currentStop)
     }
     
@@ -425,10 +435,15 @@ actor JourneyEngine {
                 }
             }
         case .failure(let error):
-            if let mbtaError = error as? MBTAError, mbtaError == .rateLimitDropped {
-                return
+            if let mbtaError = error as? MBTAError, (mbtaError == .rateLimitDropped || mbtaError == .rateLimited) {
+                if case .loading = freshJourney.predictionState {
+                    freshJourney.predictionState = .unavailable(stopId: stop.mbtaStopId, message: "Rate limit reached. Try again.")
+                } else {
+                    return
+                }
+            } else {
+                freshJourney.predictionState = .unavailable(stopId: stop.mbtaStopId, message: "Cannot reach predictions")
             }
-            freshJourney.predictionState = .unavailable(stopId: stop.mbtaStopId, message: "Cannot reach predictions")
         }
         
         saveActiveJourneyAndPublish(freshJourney)
@@ -454,10 +469,15 @@ actor JourneyEngine {
                 freshJourney.transferPredictionState = .loaded(stopId: stop.mbtaStopId, times: times)
             }
         case .failure(let error):
-            if let mbtaError = error as? MBTAError, mbtaError == .rateLimitDropped {
-                return
+            if let mbtaError = error as? MBTAError, (mbtaError == .rateLimitDropped || mbtaError == .rateLimited) {
+                if case .loading = freshJourney.transferPredictionState {
+                    freshJourney.transferPredictionState = .unavailable(stopId: stop.mbtaStopId, message: "Rate limit reached. Try again.")
+                } else {
+                    return
+                }
+            } else {
+                freshJourney.transferPredictionState = .unavailable(stopId: stop.mbtaStopId, message: "Cannot reach predictions")
             }
-            freshJourney.transferPredictionState = .unavailable(stopId: stop.mbtaStopId, message: "Cannot reach predictions")
         }
         
         saveActiveJourneyAndPublish(freshJourney)
@@ -484,11 +504,12 @@ actor JourneyEngine {
         }
     }
     
+    //
     private func refreshTripTrackingData(tripId:String) async  {
         do {
             let tripTrackingData = try await mbtaClient.fetchTripTrackingData(tripId, .patternMatching)
             // we need a new path once we get new trip data
-            updateMatchedLegPath(tripTrackingData: tripTrackingData)
+            updateLivePath(liveTripPath: tripTrackingData)
             
         } catch {
             handleVehicleFetchError(error: error)
@@ -499,23 +520,14 @@ actor JourneyEngine {
         print("this is where we could deal with internet issues, like timeout errors or api issues")
     }
     
-    private func updateMatchedLegPath(tripTrackingData:LiveTripTrackingData) {
-        guard let currentLeg = userDefaultsClient.loadActiveJourney()?.currentLeg else {
-            print("JourneyEngine no current leg for matched path")
-            return
-        }
-        guard matchedPath?.matches(leg: currentLeg, tripId: tripTrackingData.tripId) != true else {
-            print("JourneyEngine matched path already current")
-            return
-        }
-
-        print("JourneyEngine update matched path trip: \(tripTrackingData.tripId) leg: \(currentLeg.legIndex) pattern: \(currentLeg.selectedPatternId)")
-        matchedPath = MatchedLegPath(
-            leg: currentLeg,
-            tripTrackingData: tripTrackingData
-        )
+    private func updateLivePath(liveTripPath:LiveTripPath) {
+        guard let currentLeg = userDefaultsClient.loadActiveJourney()?.currentLeg else { return }
+        guard matchedPath?.matches(leg: currentLeg, tripId: liveTripPath.tripId) != true else { return }
+        
+        matchedPath = MatchedLegPath( leg: currentLeg,tripPath: liveTripPath)
     }
 
+    //bullshit
     private func prepareTrackedVehicleForUndergroundMonitoring(stop: ResolvedStop, journey: JourneyState) async -> Bool {
         if matchedPathIsCurrent(for: journey),
            trackedVehicleId != nil,
@@ -529,6 +541,7 @@ actor JourneyEngine {
         return await fetchPredictionsAndSelectVehicle(stop: stop)
     }
 
+    //bullshit
     private func matchedPathIsCurrent(for journey: JourneyState) -> Bool {
         guard let currentLeg = journey.currentLeg,
               let trackedTripId else {

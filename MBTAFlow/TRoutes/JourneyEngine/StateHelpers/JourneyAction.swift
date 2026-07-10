@@ -5,6 +5,7 @@
 //  Created by Adam Post on 6/19/26.
 //
 
+///Determines what we need to do after receiving a JourneyCommand based on JourneyState
 enum JourneyAction: Equatable {
     case arriveAtStop
     case departFromStop

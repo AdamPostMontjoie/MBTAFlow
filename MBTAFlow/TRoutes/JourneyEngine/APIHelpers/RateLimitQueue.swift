@@ -35,7 +35,8 @@ enum RequestAvailability {
     case noRequestsAvailable
 }
 
-///Queue that manages our API request limit
+///Queue that manages our API request limit.
+///Locks up API call or drops based on priority
 actor RateLimitQueue {
     static let shared = RateLimitQueue()
     
@@ -109,7 +110,6 @@ actor RateLimitQueue {
                 scheduleWakeUp()
             }
         }
-        
         requestHistory.append(Date())
     }
     
@@ -118,6 +118,7 @@ actor RateLimitQueue {
         while let oldest = requestHistory.first, now.timeIntervalSince(oldest) > limitResetTime {
             _ = requestHistory.popFirst()
         }
+        print("requests cleared, queue size is now \(requestHistory.count)")
     }
     
     private func scheduleWakeUp() {
@@ -133,6 +134,7 @@ actor RateLimitQueue {
     private func wakeNextPending() {
         cleanUp()
         if requestHistory.count < limit, !backedUpRequests.isEmpty {
+            print("ran backed up task")
             let next = backedUpRequests.removeFirst()
             next.continuation.resume()
         }

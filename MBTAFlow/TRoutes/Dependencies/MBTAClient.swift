@@ -17,7 +17,7 @@ struct MBTAClient {
     var fetchStops: @Sendable (Int, String, MBTARequestType) async throws -> [Stop]
     //position
     var fetchVehicleData: @Sendable (String, MBTARequestType) async throws -> VehicleData
-    var fetchTripTrackingData: @Sendable (String, MBTARequestType) async throws -> LiveTripTrackingData
+    var fetchTripTrackingData: @Sendable (String, MBTARequestType) async throws -> LiveTripPath
 }
 
 
@@ -52,6 +52,7 @@ func reviewHttpResponse(_ response: URLResponse, _ data: Data) throws {
     case 403:
         throw MBTAError.forbidden
     case 429:
+        print("rate limited, didn't drop")
         throw MBTAError.rateLimited
     default:
         // 500 errors
@@ -65,6 +66,7 @@ extension MBTAClient:DependencyKey {
             do {
                 try await RateLimitQueue.shared.acquireToken(for: requestType)
             } catch {
+                print("dropped request")
                 throw MBTAError.rateLimitDropped
             }
             //filter out any that are in past and then return next 3.
@@ -341,7 +343,7 @@ extension MBTAClient:DependencyKey {
 
             do {
                 let tripResponse = try decoder.decode(TripTrackingResponse.self, from: data)
-                return makeLiveTripTrackingData(from: tripResponse)
+                return makeLiveTripPath(from: tripResponse)
             } catch {
                 throw MBTAError.decodingError
             }
@@ -357,7 +359,7 @@ extension DependencyValues {
     }
 }
 
-private func makeLiveTripTrackingData(from response: TripTrackingResponse) -> LiveTripTrackingData {
+private func makeLiveTripPath(from response: TripTrackingResponse) -> LiveTripPath {
     let included = response.included ?? []
     let includedById = Dictionary(uniqueKeysWithValues: included.map { ($0.id, $0) })
     let vehicleId = response.data.relationships.vehicle?.data?.id
@@ -391,7 +393,7 @@ private func makeLiveTripTrackingData(from response: TripTrackingResponse) -> Li
         )
     }
 
-    return LiveTripTrackingData(
+    return LiveTripPath(
         tripId: response.data.id,
         vehicleId: vehicleId,
         routePatternId: response.data.relationships.routePattern?.data?.id,
