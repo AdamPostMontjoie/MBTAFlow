@@ -124,6 +124,7 @@ extension MBTAClient:DependencyKey {
                             continue
                         }
                     }
+                    let routeId = prediction.relationships.route?.data?.id
                     
                     let vehicleId = prediction.relationships.vehicle?.data?.id
                     if let vehicleId, !seenVehicleIds.insert(vehicleId).inserted {
@@ -137,6 +138,8 @@ extension MBTAClient:DependencyKey {
                             predictionId: prediction.id,
                             tripId: prediction.relationships.trip?.data?.id,
                             stopId: prediction.relationships.stop?.data?.id,
+                            routeId: routeId,
+                            headsign: prediction.attributes.tripHeadsign,
                             directionId: prediction.attributes.directionId,
                             stopSequence: prediction.attributes.stopSequence
                         )

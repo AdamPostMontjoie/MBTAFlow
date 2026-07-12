@@ -7,11 +7,8 @@
 
 import Foundation
 
-// 1. The Root Level
 struct PredictionResponse: Codable {
     let data: [PredictionData]
-    // You can omit the "links" object entirely if you do not need to use it.
-    // Swift will simply ignore any JSON keys you do not explicitly define.
 }
 
 struct TransitPrediction: Codable, Equatable, Hashable {
@@ -20,11 +17,27 @@ struct TransitPrediction: Codable, Equatable, Hashable {
     let predictionId: String
     let tripId: String?
     let stopId: String?
+    let routeId: String?
+    let headsign: String?
     let directionId: Int?
     let stopSequence: Int?
+
+    /// Short branch label for display (e.g., "Ashmont", "B", "Braintree")
+    var branchLabel: String? {
+        // Green Line
+        if let routeId, routeId.hasPrefix("Green-") {
+            return routeId.replacingOccurrences(of: "Green-", with: "")
+        }
+        //Red Line
+        if let headsign, !headsign.isEmpty {
+            if let routeId, routeId == "Red" {
+                return headsign
+            }
+        }
+        return nil
+    }
 }
 
-// 2. The Data Array Elements
 struct PredictionData: Codable {
     let type: String
     let id: String
@@ -32,7 +45,6 @@ struct PredictionData: Codable {
     let relationships: PredictionRelationships
 }
 
-// 3. The Attributes (The actual prediction data)
 struct PredictionAttributes: Codable {
     let updateType: String?
     let tripHeadsign: String?
@@ -46,12 +58,8 @@ struct PredictionAttributes: Codable {
     let departureTime: String?
     let arrivalUncertainty: Int?
     let arrivalTime: String?
-    
-    // Note: Use Optionals (?) for properties that might be null in the API response.
-    // For example, the first stop on a route will have a null arrivalTime.
 }
 
-// 4. The Relationships (Pointers to other objects)
 struct PredictionRelationships: Codable {
     let vehicle: RelationshipSingle?
     let trip: RelationshipSingle?
@@ -61,7 +69,6 @@ struct PredictionRelationships: Codable {
     let alerts: RelationshipMultiple?
 }
 
-// 5. Relationship Helpers
 struct RelationshipSingle: Codable {
     let data: RelationshipNode?
 }
