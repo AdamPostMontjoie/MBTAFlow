@@ -69,7 +69,7 @@ struct ActiveJourneyDisplayView: View {
                 if let activePrediction = store.journey?.activeLegPrediction {
                     predictionTimesBlock(
                         state: activePrediction.loadingState,
-                        lastObservedTimes: activePrediction.lastObservedPredictions.map { $0.display },
+                        predictions: activePrediction.lastObservedPredictions,
                         color: transitColor,
                         iconName: store.currentTransitType?.iconName,
                         foregroundColor: transitForegroundColor
@@ -124,7 +124,7 @@ struct ActiveJourneyDisplayView: View {
                     if let transferPrediction = store.journey?.transferLegPrediction {
                         predictionTimesBlock(
                             state: transferPrediction.loadingState,
-                            lastObservedTimes: transferPrediction.lastObservedPredictions.map { $0.display },
+                            predictions: transferPrediction.lastObservedPredictions,
                             color: .white.opacity(0.2), // Frosted/muted background for the boxes so they don't clash with the solid colored banner
                             iconName: nextLegIconName,
                             foregroundColor: transferForeground
@@ -281,53 +281,60 @@ struct ActiveJourneyDisplayView: View {
 
     
     @ViewBuilder
-    private func timesRow(times: [String], color: Color, foregroundColor: Color, opacity: Double = 1.0) -> some View {
+    private func timesRow(times: [String], predictions: [TransitPrediction] = [], color: Color, foregroundColor: Color, opacity: Double = 1.0) -> some View {
         HStack(spacing: 8) {
-            ForEach(times, id: \.self) { time in
+            ForEach(Array(times.enumerated()), id: \.offset) { index, time in
+                let prediction = predictions.indices.contains(index) ? predictions[index] : nil
                 let bgStyle: AnyShapeStyle = (color == .white.opacity(0.2)) ? AnyShapeStyle(color) : AnyShapeStyle(color.gradient)
-                if time.lowercased().contains("stopped") {
-                    HStack(spacing: 4) {
+                let branchLabel = prediction?.branchLabel
+                
+                HStack(spacing: 4) {
+                    if let branchLabel {
+                        Text(branchLabel)
+                            .font(.footnote.weight(.black))
+                            .foregroundStyle(.black)
+                            .frame(width: 20, height: 20)
+                            .background(.white)
+                            .clipShape(Circle())
+                    }
+                    
+                    if time.lowercased().contains("stopped") {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.yellow)
                         Text("Stopped")
+                    } else {
+                        Text(time)
                     }
-                    .font(.headline.weight(.heavy))
-                    .foregroundStyle(foregroundColor)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(bgStyle)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .shadow(color: color == .white.opacity(0.2) ? .clear : color.opacity(0.3), radius: 4, x: 0, y: 2)
-                } else {
-                    Text(time)
-                        .font(.headline.weight(.heavy))
-                        .foregroundStyle(foregroundColor)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(bgStyle)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .shadow(color: color == .white.opacity(0.2) ? .clear : color.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
+                .font(.subheadline.weight(.heavy))
+                .foregroundStyle(foregroundColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(minWidth: 60, maxHeight: 34)
+                .padding(.horizontal, 10)
+                .background(bgStyle)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .shadow(color: color == .white.opacity(0.2) ? .clear : color.opacity(0.3), radius: 4, x: 0, y: 2)
             }
         }
         .opacity(opacity)
     }
 
     @ViewBuilder
-    private func predictionTimesBlock(state: PredictionLoadingState?, lastObservedTimes: [String], color: Color, iconName: String?, foregroundColor: Color) -> some View {
+    private func predictionTimesBlock(state: PredictionLoadingState?, predictions: [TransitPrediction], color: Color, iconName: String?, foregroundColor: Color) -> some View {
         if let state = state {
             HStack(spacing: 8) {
                 if let iconName = iconName {
                     Image(systemName: iconName)
                         .font(.title2)
-                        .foregroundStyle(color == .white.opacity(0.2) ? foregroundColor : color)
+                        .foregroundStyle(transitColor)
                 }
                 
                 switch state {
                 case let .loaded(_, times):
-                    timesRow(times: times, color: color, foregroundColor: foregroundColor)
+                    timesRow(times: times, predictions: predictions, color: color, foregroundColor: foregroundColor)
                 case .loading:
-                    if lastObservedTimes.isEmpty {
+                    if predictions.isEmpty {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .controlSize(.small)
@@ -343,7 +350,7 @@ struct ActiveJourneyDisplayView: View {
                                 .controlSize(.small)
                                 .tint(color == .white.opacity(0.2) ? foregroundColor : color)
                             
-                            timesRow(times: lastObservedTimes, color: color, foregroundColor: foregroundColor, opacity: 0.5)
+                            timesRow(times: predictions.map(\.display), predictions: predictions, color: color, foregroundColor: foregroundColor, opacity: 0.5)
                         }
                     }
                 case let .unavailable(_, message):

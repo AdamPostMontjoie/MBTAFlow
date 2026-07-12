@@ -69,7 +69,7 @@ struct LegFormView: View {
     private var branchSection: some View {
         if store.currentFormStep == .selectBranch || store.selectedBranch != nil || !store.selectedBranches.isEmpty {
             Section(header: resetHeader(
-                title: store.isMultiBranchMode ? "Branches" : "Branch",
+                title: store.isMultiBranchMode ? "Branches" : (store.selectedType == .bus ? "Bus Route" : "Branch"),
                 isResetVisible: store.selectedBranch != nil || !store.selectedBranches.isEmpty,
                 action: .resetBranchSelection
             )) {
@@ -97,10 +97,23 @@ struct LegFormView: View {
                         .tint(.blue)
                     }
                 } else {
-                    Picker("Branch", selection: branchSelection) {
-                        Text("Select a branch").tag(TransitBranch?.none)
-                        ForEach(store.branchOptions ?? [], id: \.self) { branch in
-                            Text(branch.displayName).tag(TransitBranch?.some(branch))
+                    NavigationLink {
+                        BranchPickerDestinationView(
+                            options: store.branchOptions ?? [],
+                            selection: branchSelection,
+                            title: store.selectedType == .bus ? "Select Bus" : "Select Branch"
+                        )
+                    } label: {
+                        HStack {
+                            Text(store.selectedType == .bus ? "Bus" : "Branch")
+                            Spacer()
+                            if let selected = store.selectedBranch {
+                                Text(selected.displayName)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(store.selectedType == .bus ? "Select a bus" : "Select a branch")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .disabled(store.selectedBranch != nil)
@@ -302,6 +315,41 @@ struct LegFormView: View {
         case .edit:
             return "Edit Leg"
         }
+    }
+}
+
+struct BranchPickerDestinationView: View {
+    let options: [TransitBranch]
+    @Binding var selection: TransitBranch?
+    let title: String
+    @State private var searchText = ""
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        List {
+            let filtered = searchText.isEmpty ? options : options.filter {
+                $0.displayName.localizedCaseInsensitiveContains(searchText)
+            }
+            ForEach(filtered, id: \.self) { branch in
+                Button {
+                    selection = branch
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(branch.displayName)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selection == branch {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+            }
+        }
+        .searchable(text: $searchText, prompt: "Search")
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

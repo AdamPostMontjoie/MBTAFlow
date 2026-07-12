@@ -15,7 +15,6 @@ struct RouteListData: Codable {
     let attributes: RouteListAttributes
 }
 
-// 1. Update the JSON decoding structs to capture the new fields
 struct RouteListAttributes: Codable {
     let shortName: String?
     let longName: String?
@@ -23,11 +22,10 @@ struct RouteListAttributes: Codable {
     let directionDestinations: [String]? // e.g., ["Boston College", "Government Center"]
 }
 
-// 2. Update your UI State model
 struct TransitBranch: Codable, Equatable, Hashable {
     let id: String // e.g., "Green-B"
     let displayName: String // e.g., "B Branch"
-    let directions: [TransitDirection] // Holds the pre-fetched directions
+    let directions: [TransitDirection]
 }
 
 struct TransitDirection: Codable, Equatable, Hashable {

@@ -127,7 +127,7 @@ struct ActiveJourneyDisplayFeature {
             case .orangeLine: return "OL"
             case .blueLine: return "BL"
             case .greenLine:
-                return leg.mbtaRouteId.replacingOccurrences(of: "Green-", with: "")
+                return "GL"
             case .mattapan: return "M"
             case .commuterRail: return "CR"
             case .bus:
