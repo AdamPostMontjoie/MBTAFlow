@@ -49,8 +49,8 @@ extension NotificationsClient: DependencyKey {
         },
         userNotification: { message in
             guard !DebugAvailability.isDebugActive else {
-                    return
-                }
+                return
+            }
 
             guard await UIApplication.shared.applicationState == .background else {
                 return
@@ -75,8 +75,6 @@ extension NotificationsClient: DependencyKey {
             }
         }
     )
-
-    static let testValue: Self = .liveValue
 }
 
 

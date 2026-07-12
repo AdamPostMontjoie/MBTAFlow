@@ -320,7 +320,6 @@ extension MBTAClient:DependencyKey {
             }
         }
     )
-    static let testValue: Self = .liveValue //TODO figure out what the hell this is even about later
 }
 
 extension DependencyValues {

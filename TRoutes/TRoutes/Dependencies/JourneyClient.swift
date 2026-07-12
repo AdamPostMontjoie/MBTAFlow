@@ -76,7 +76,6 @@ extension JourneyClient: DependencyKey {
         endRoute: {
             await JourneyEngine.shared.endRoute()
         }
-        
     )
 }
 

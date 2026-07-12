@@ -130,7 +130,7 @@ actor JourneyEngine {
         
         locationListeningTask = Task {
             for await event in stream {
-                await self.ValidateJourneyCommand(event)
+                await self.validateJourneyCommand(event)
             }
             self.locationEventStreamDidFinish()
         }
@@ -144,7 +144,7 @@ actor JourneyEngine {
         undergroundListeningTask = Task {
             for await event in stream {
                 print("JourneyEngine received underground command: \(event)")
-                await self.ValidateJourneyCommand(event)
+                await self.validateJourneyCommand(event)
             }
             self.undergroundEventStreamDidFinish()
         }
@@ -210,15 +210,15 @@ actor JourneyEngine {
         guard let currentStop = userDefaultsClient.loadActiveJourney()?.currentStop else { return }
         switch event {
         case .atStopTapped:
-            await self.ValidateJourneyCommand(JourneyCommand.executeEntry(stopId: currentStop.mbtaStopId))
+            await self.validateJourneyCommand(JourneyCommand.executeEntry(stopId: currentStop.mbtaStopId))
         case .nextStopTapped:
-            await self.ValidateJourneyCommand(JourneyCommand.executeExit(stopId: currentStop.mbtaStopId))
+            await self.validateJourneyCommand(JourneyCommand.executeExit(stopId: currentStop.mbtaStopId))
         }
         //cases for manual missed stop and confirm train TBA
     }
     
     //did we already receive this valid command from a different source and make the change?
-    func ValidateJourneyCommand(_ event:JourneyCommand) async {
+    func validateJourneyCommand(_ event:JourneyCommand) async {
         guard var currentJourney = userDefaultsClient.loadActiveJourney() else { return }
         
         let effects = JourneyCommandValidator.reduce(
@@ -562,7 +562,7 @@ actor JourneyEngine {
                 guard !Task.isCancelled else { break }
                 
                 if let journey = userDefaultsClient.loadActiveJourney(), let stop = journey.currentStop {
-                    await ValidateJourneyCommand(.refreshTimes(stopId: stop.mbtaStopId))
+                    await validateJourneyCommand(.refreshTimes(stopId: stop.mbtaStopId))
                 }
             }
         }

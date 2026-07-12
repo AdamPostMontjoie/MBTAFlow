@@ -110,7 +110,9 @@ actor RateLimitQueue {
                 scheduleWakeUp()
             }
         }
-        requestHistory.append(Date())
+        else {
+            requestHistory.append(Date())
+        }
     }
     
     private func cleanUp() {
@@ -136,6 +138,7 @@ actor RateLimitQueue {
         if requestHistory.count < limit, !backedUpRequests.isEmpty {
             print("ran backed up task")
             let next = backedUpRequests.removeFirst()
+            requestHistory.append(Date())
             next.continuation.resume()
         }
     }

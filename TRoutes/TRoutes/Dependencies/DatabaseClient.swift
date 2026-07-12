@@ -301,8 +301,6 @@ extension DatabaseClient: DependencyKey {
             }
         )
     }()
-
-    static let testValue: Self = .liveValue
 }
 
 
@@ -371,8 +369,7 @@ private func resolveLeg(
         )
     }
 
-    // Fetch only patterns for these routes + direction
-    let isDefault = true
+    // Fetch patterns for these routes + direction
     let patternDescriptor = FetchDescriptor<TransitPattern>(
         predicate: #Predicate { pattern in
             pattern.directionId == directionId

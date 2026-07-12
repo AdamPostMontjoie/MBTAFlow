@@ -19,13 +19,13 @@ extension UserDefaultsClient: DependencyKey {
         let suiteName = "group.com.adampost.TRoutes"
         let activeJourneyStateKey = "activeJourneyState"
         let debugNotificationsKey = "enableDebugNotifications"
-
+        
         return Self(
             saveActiveJourney: { state in
                 guard let encoded = try? JSONEncoder().encode(state) else {
                     return
                 }
-
+                
                 UserDefaults(suiteName: suiteName)?.set(encoded, forKey: activeJourneyStateKey)
             },
             loadActiveJourney: {
@@ -40,12 +40,6 @@ extension UserDefaultsClient: DependencyKey {
             }
         )
     }()
-
-    static let testValue = Self(
-        saveActiveJourney: { _ in },
-        loadActiveJourney: { nil },
-        clearActiveJourney: { }
-    )
 }
 
 extension DependencyValues {

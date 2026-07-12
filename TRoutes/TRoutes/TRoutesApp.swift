@@ -12,6 +12,9 @@ import UIKit
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
+    
+    @Dependency(\.notificationsClient) var notificationsClient
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         //put this before or after the region manager creation?
         Task {
@@ -25,12 +28,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
     func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
         Task {
-            await NotificationsClient.liveValue.debugNotification("Memory warning received")
+            await notificationsClient.debugNotification("Memory warning received")
         }
     }
     func applicationWillTerminate(_ application: UIApplication) {
         Task {
-            await NotificationsClient.liveValue.debugNotification("App will terminate")
+            await notificationsClient.debugNotification("App will terminate")
         }
     }
 }
