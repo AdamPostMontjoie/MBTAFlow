@@ -317,9 +317,13 @@ actor JourneyEngine {
             await UndergroundManager.shared.startSession()
             
             let isWaitingToBoard = stop.journeyRole == .boarding
+            // Tunnel-entry: stop is inherently surface but monitored as underground
+            // because the look-ahead switched modes (next stop is underground).
+            let isTunnelEntry = stop.monitoringMode == .surface && currentJourney.monitoringMode == .underground
+            
             if let trackedVehicleId = currentJourney.trackedVehicleId,
                let trackedTripId = currentJourney.trackedTripId {
-                print("JourneyEngine set UGM vehicle: \(trackedVehicleId) trip: \(trackedTripId) stop: \(stop.mbtaStopId)")
+                print("JourneyEngine set UGM vehicle: \(trackedVehicleId) trip: \(trackedTripId) stop: \(stop.mbtaStopId) tunnelEntry: \(isTunnelEntry)")
                 await UndergroundManager.shared.setTrackedVehicle(
                     vehicleId: trackedVehicleId,
                     tripId: trackedTripId,
@@ -327,7 +331,8 @@ actor JourneyEngine {
                     waitToBoard: isWaitingToBoard,
                     stopLatitude: stop.latitude,
                     stopLongitude: stop.longitude,
-                    isFirstStop: currentJourney.stopIndex == 0
+                    isFirstStop: currentJourney.stopIndex == 0,
+                    isTunnelEntry: isTunnelEntry
                 )
             } else {
                 print("JourneyEngine underground tracking not ready for \(stop.mbtaStopId) - no tracked vehicle")
@@ -430,6 +435,7 @@ actor JourneyEngine {
                         trackedTripId = firstValid.tripId
                         
                         if freshJourney.monitoringMode == .underground {
+                            let isTunnelEntry = targetPrediction.predictedStop.monitoringMode == .surface && freshJourney.monitoringMode == .underground
                             print("JourneyEngine: Updating UGM with new tracked vehicle while at stop \(targetPrediction.predictedStop.mbtaStopId)")
                             await UndergroundManager.shared.setTrackedVehicle(
                                 vehicleId: firstValid.vehicleId!,
@@ -438,7 +444,8 @@ actor JourneyEngine {
                                 waitToBoard: true,
                                 stopLatitude: targetPrediction.predictedStop.latitude,
                                 stopLongitude: targetPrediction.predictedStop.longitude,
-                                isFirstStop: freshJourney.stopIndex == 0
+                                isFirstStop: freshJourney.stopIndex == 0,
+                                isTunnelEntry: isTunnelEntry
                             )
                         }
                     }

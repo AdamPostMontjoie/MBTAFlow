@@ -132,7 +132,6 @@ struct JourneyState: Equatable, Codable {
     mutating func backtrackToPreviousStop() -> ResolvedStop? {
         guard let prevStop = previousStop else { return nil }
         stopIndex -= 1
-        monitoringMode = prevStop.monitoringMode
         if legOrder.indices.contains(prevStop.legIndex) {
             legIndex = prevStop.legIndex
         }

@@ -50,14 +50,14 @@ enum JourneyAction: Equatable {
                 }
                 effects.append(.monitorStop(stop))
             }
-            effects.append(.sendNotification("entered \(stop.mbtaStopId)"))
+            effects.append(.sendNotification("entered \(stop.stopName)"))
             return effects
             
         case let .transfer(overlapsNext):
             guard overlapsNext else {
                 state.activeLegPrediction = nil
                 state.transferLegPrediction = nil
-                return [.sendNotification("entered \(stop.mbtaStopId)")]
+                return [.sendNotification("entered \(stop.stopName)")]
             }
             
             let previousMonitoringMode = state.monitoringMode
@@ -93,7 +93,7 @@ enum JourneyAction: Equatable {
                 }
                 effects.append(.monitorStop(stop))
             }
-            effects.append(.sendNotification("entered \(stop.mbtaStopId)"))
+            effects.append(.sendNotification("entered \(stop.stopName)"))
             return effects
             
         case .final:
@@ -175,8 +175,18 @@ enum JourneyAction: Equatable {
         )
     }
     private func backtrackToStop(state: inout JourneyState) -> [JourneyEffect] {
+        let previousMode = state.monitoringMode
         guard let prevStop = state.backtrackToPreviousStop() else {
             return []
+        }
+        
+        // Determine correct mode via look-ahead (same logic as arriveAtStop):
+        // if the next stop is underground, stay underground even though
+        // the backtracked stop's inherent mode may be surface.
+        if let nextStop = state.nextStop, nextStop.monitoringMode == .underground {
+            state.monitoringMode = .underground
+        } else {
+            state.monitoringMode = prevStop.monitoringMode
         }
         
         state.pendingDepartureConfirmation = false
@@ -188,8 +198,10 @@ enum JourneyAction: Equatable {
         )
         state.transferLegPrediction = nil
         
-        // Return effects to switch mode if needed and re-monitor the stop
         var effects: [JourneyEffect] = []
+        if state.monitoringMode != previousMode {
+            effects.append(.switchMonitoringMode(state.monitoringMode))
+        }
         effects.append(.monitorStop(prevStop))
         effects.append(.fetchPredictions)
         effects.append(.sendNotification("Backtracked to \(prevStop.stopName)"))
