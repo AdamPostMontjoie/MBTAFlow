@@ -120,7 +120,7 @@ struct JourneyExpandedIslandView: View {
                 .foregroundStyle(foregroundColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(minWidth: 60, maxHeight: 34)
+                .frame(minWidth: 60, minHeight: 34)
                 .padding(.horizontal, 10)
                 .background(bgStyle)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -186,7 +186,7 @@ struct JourneyLockScreenView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 // Top Level: Route & Destination
                 HStack(alignment: .center, spacing: 8) {
                     if !state.shortRouteName.isEmpty {
@@ -234,7 +234,7 @@ struct JourneyLockScreenView: View {
                         }
                     }
                 }
-                .padding(.top, 4)
+                .padding(.top, 2)
                 
                 // Bottom Level: Focus Data (ETAs + Train Logo)
                 if let loadingState = state.activePredictionLoadingState {
@@ -246,7 +246,7 @@ struct JourneyLockScreenView: View {
                         iconColor: transitColor,
                         foregroundColor: transitForegroundColor
                     )
-                    .padding(.top, 4)
+                    .padding(.top, 2)
                 }
             }
             .padding(16)
@@ -289,7 +289,7 @@ struct JourneyLockScreenView: View {
                 }
                 .foregroundStyle(transferForeground)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 6)
                 .background(transferColor.gradient)
             }
         }
@@ -337,7 +337,7 @@ struct JourneyLockScreenView: View {
                 .foregroundStyle(foregroundColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(minWidth: 60, maxHeight: 34)
+                .frame(minWidth: 60, minHeight: 34)
                 .padding(.horizontal, 10)
                 .background(bgStyle)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
