@@ -34,18 +34,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         LiveActivityManager.shared.stopSessionTimeoutAsync()
     }
 }
-func endAllActivities() async {
-    for activity in Activity<JourneyAttributes>.activities {
-        let finalContent = ActivityContent(
-            state: activity.content.state,
-            staleDate: nil
-        )
-        await activity.end(
-            finalContent,
-            dismissalPolicy: .immediate
-        )
-    }
-}
 //application wide state
 @Observable class AppState {
     
