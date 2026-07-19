@@ -215,7 +215,7 @@ actor JourneyEngine {
         //cases for manual missed stop and confirm train TBA
     }
     
-    //did we already receive this valid command from a different source and make the change?
+    //Receives commands that will update state and runs effects
     func validateJourneyCommand(_ event:JourneyCommand) async {
         guard var currentJourney = self.activeJourney else { return }
         var mutatedJourney = currentJourney
@@ -223,7 +223,6 @@ actor JourneyEngine {
             state: &mutatedJourney,
             command: event
         )
-        
         // save if state changed
         if mutatedJourney != currentJourney {
             saveActiveJourneyAndPublish(mutatedJourney)
@@ -291,8 +290,7 @@ actor JourneyEngine {
         }
     }
     
-    // This needs to execute before register region every time.
-    // we can just stop the current session, as the registration will be simple
+    //Switch Location Manager
     func switchMonitoringMode(newMode: MonitoringMode) async {
         print("JourneyEngine switchMonitoringMode \(newMode)")
         switch newMode {
@@ -300,13 +298,11 @@ actor JourneyEngine {
             //end UGM
             await UndergroundManager.shared.stopFunction()
             //start RGM
-            print("surface monitoring")
             await startListeningToLocationEvents()
         case .underground:
             //end RGM
             await SurfaceManager.shared.stopFunction()
             //start UGM
-            print("underground monitoring")
             await startListeningToUndergroundEvents()
         }
     }
@@ -326,16 +322,11 @@ actor JourneyEngine {
             print("underground monitoring")
             await UndergroundManager.shared.startSession()
             
-            let isWaitingToBoard = stop.journeyRole == .boarding
-            
-            let trackedVehicleId = currentJourney.trackedVehicleId
-            let trackedTripId = currentJourney.trackedTripId
-            
             await UndergroundManager.shared.setTrackedVehicle(
-                vehicleId: trackedVehicleId,
-                tripId: trackedTripId,
+                vehicleId: currentJourney.trackedVehicleId,
+                tripId: currentJourney.trackedTripId,
                 boardingStopId: stop.mbtaStopId,
-                waitToBoard: isWaitingToBoard,
+                waitToBoard: stop.journeyRole == .boarding,
                 stopLatitude: stop.latitude,
                 stopLongitude: stop.longitude
             )

@@ -218,11 +218,15 @@ enum JourneyAction: Equatable {
     private func evaluatePredictionRefresh(state: inout JourneyState) -> [JourneyEffect] {
         guard state.activeLegPrediction != nil || state.transferLegPrediction != nil else { return [] }
         
+        
         if state.activeLegPrediction != nil {
-            state.activeLegPrediction?.loadingState = .loading(stopId: state.activeLegPrediction!.predictedStop.mbtaStopId)
+            guard let activeStopId = state.activeLegPrediction?.predictedStop.mbtaStopId else { return [] }
+            state.activeLegPrediction?.loadingState = .loading(stopId: activeStopId)
         }
+        
         if state.transferLegPrediction != nil {
-            state.transferLegPrediction?.loadingState = .loading(stopId: state.transferLegPrediction!.predictedStop.mbtaStopId)
+            guard let transferStopId = state.transferLegPrediction?.predictedStop.mbtaStopId else { return []}
+            state.transferLegPrediction?.loadingState = .loading(stopId: transferStopId)
         }
         
         return [.fetchPredictions]
