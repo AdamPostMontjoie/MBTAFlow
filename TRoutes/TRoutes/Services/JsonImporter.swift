@@ -65,8 +65,8 @@ actor JsonImporter {
     }
 
     private func markTransitDataImported() {
-        @Shared(.isTransitDataImported) var isTransitDataImported = false
-        $isTransitDataImported.withLock { $0 = true }
+        @Shared(.importedFeedVersion) var importedFeedVersion = ""
+        $importedFeedVersion.withLock { $0 = DatabaseClient.currentFeedVersion }
     }
 
     private func decodeJsonBuilderFile<T: Decodable>(named fileName: String) throws -> [T] {

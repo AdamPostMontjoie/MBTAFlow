@@ -21,6 +21,12 @@ struct DatabaseClient {
     var resolveUserRoute: @Sendable (UserRoute) async throws -> ResolvedUserRoute
 }
 
+extension DatabaseClient {
+    //When this changes, it triggers importing
+    public static let currentSchemaVersion = 4
+    public static let currentFeedVersion = "jsonbuilder-v4"
+}
+
 enum DatabaseError: Error, Equatable {
     case emptyRoute
 }
@@ -56,8 +62,8 @@ final class TransitReferenceImportMetadata {
 extension DatabaseClient: DependencyKey {
     static let liveValue:Self  = {
         let metadataId = "transit-reference-data"
-        let schemaVersion = 3
-        let feedVersion = "jsonbuilder-v3"
+        let schemaVersion = DatabaseClient.currentSchemaVersion
+        let feedVersion = DatabaseClient.currentFeedVersion
         let sharedContainer: ModelContainer
             do {
                 let appSupport = try FileManager.default.url(
