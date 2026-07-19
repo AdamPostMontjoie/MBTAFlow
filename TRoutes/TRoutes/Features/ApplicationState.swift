@@ -55,7 +55,10 @@ extension SharedReaderKey where Self == AppStorageKey<Bool> {
     static var hasOnboarded: Self {
         appStorage("hasOnboarded")
     }
-    static var isTransitDataImported: Self {
-        appStorage("transitDataImported")
+}
+
+extension SharedReaderKey where Self == AppStorageKey<String> {
+    static var importedFeedVersion: Self {
+        appStorage("importedFeedVersion")
     }
 }
