@@ -349,6 +349,8 @@ private func resolveLeg(
     let routeIds: [String]
     if let selectedIds = leg.selectedRouteIds, !selectedIds.isEmpty {
         routeIds = selectedIds
+    } else if leg.transitType == .greenLine {
+        routeIds = leg.transitType.routeIds
     } else if leg.transitType.requiresRouteSelection {
         routeIds = [leg.mbtaRouteId]
     } else {
@@ -403,12 +405,18 @@ private func resolveLeg(
             .filter { neededStationIds.contains($0.stationId) }
             .map { ($0.stationId, $0) }
     )
+    
+    let originPlatform = allPlatforms.first(where: { $0.platformId == leg.startStop.mbtaStopId })
+    let originStationId = originPlatform?.stationId
+    
+    let destPlatform = allPlatforms.first(where: { $0.platformId == leg.endStop.mbtaStopId })
+    let destStationId = destPlatform?.stationId
 
     let validCandidates = Dictionary(grouping: routeDirectionEdges, by: \.patternId)
         .compactMap { patternId, edges -> PatternResolutionCandidate? in
             let sortedEdges = sortEdges(edges)
-            guard let originMatch = findStopMatch(in: sortedEdges, stopId: leg.startStop.mbtaStopId),
-                  let destinationMatch = findStopMatch(in: sortedEdges, stopId: leg.endStop.mbtaStopId),
+            guard let originMatch = findStopMatch(in: sortedEdges, stopId: leg.startStop.mbtaStopId, stationId: originStationId),
+                  let destinationMatch = findStopMatch(in: sortedEdges, stopId: leg.endStop.mbtaStopId, stationId: destStationId),
                   originMatch.edgePosition < destinationMatch.edgePosition else {
                 return nil
             }
@@ -436,11 +444,16 @@ private func resolveLeg(
     let allAcceptablePatternIds = validCandidates.map(\.patternId).sorted()
     let allAcceptableRouteIds = Array(Set(validCandidates.compactMap { $0.pattern?.routeId })).sorted()
     
-    // Group ALL platforms in the system by their parent station ID.
-    // This allows acceptableStopIds to contain every platform at a station, 
+    let targetTransitType = selectedCandidate.edges.first?.platform?.transitType ?? originPlatform?.transitType
+    
+    // Group ALL platforms in the system by their parent station ID, filtering by the leg's transit type.
+    // This allows acceptableStopIds to contain every platform at a station for THIS transit type, 
     // ensuring we don't miss an arrival if a vehicle pulls into a sibling platform
-    // or an unexpected branch platform.
-    let siblingPlatformsByStation = Dictionary(grouping: allPlatforms, by: \.stationId)
+    // or an unexpected branch platform, while excluding unrelated platforms like busways.
+    let siblingPlatformsByStation = Dictionary(
+        grouping: allPlatforms.filter { targetTransitType == nil || $0.transitType == targetTransitType }, 
+        by: \.stationId
+    )
         .mapValues { platforms in Array(Set(platforms.map(\.platformId))) }
 
     let patternStops = try selectedCandidate.patternEdges.enumerated().map { patternStopIndex, edge in
@@ -560,12 +573,12 @@ private func sortEdges(_ edges: [TransitSequenceEdge]) -> [TransitSequenceEdge] 
     }
 }
 
-private func findStopMatch(in edges: [TransitSequenceEdge], stopId: String) -> StopMatch? {
+private func findStopMatch(in edges: [TransitSequenceEdge], stopId: String, stationId: String?) -> StopMatch? {
     if let platformIndex = edges.firstIndex(where: { $0.platformId == stopId }) {
         return StopMatch(edgePosition: platformIndex, isExactPlatformMatch: true)
     }
 
-    if let stationIndex = edges.firstIndex(where: { $0.stationId == stopId }) {
+    if let stationIndex = edges.firstIndex(where: { $0.stationId == stopId || (stationId != nil && $0.stationId == stationId) }) {
         return StopMatch(edgePosition: stationIndex, isExactPlatformMatch: false)
     }
 

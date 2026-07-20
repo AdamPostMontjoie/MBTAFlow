@@ -72,7 +72,8 @@ extension MBTAClient:DependencyKey {
             }
             // Use comma-separated route IDs for multi-branch filtering
             let routeFilter = routeIds.isEmpty ? stop.mbtaRouteId : routeIds.joined(separator: ",")
-            guard let url = URL(string: "\(header)predictions?filter[stop]=\(stop.mbtaStopId)&filter[direction_id]=\(stop.mbtaDirectionId)&filter[route]=\(routeFilter)&filter[revenue]=\("REVENUE")&sort=time&page[limit]=15") else {
+            let stopFilter = stop.acceptableStopIds.isEmpty ? stop.mbtaStopId : stop.acceptableStopIds.joined(separator: ",")
+            guard let url = URL(string: "\(header)predictions?filter[stop]=\(stopFilter)&filter[direction_id]=\(stop.mbtaDirectionId)&filter[route]=\(routeFilter)&filter[revenue]=\("REVENUE")&sort=time&page[limit]=15") else {
                 throw MBTAError.networkError
             }
          //   print("MBTAClient fetchTransitTimes URL: \(url.absoluteString)")
@@ -168,7 +169,8 @@ extension MBTAClient:DependencyKey {
             dateFormatter.timeZone = TimeZone(identifier: "America/New_York")
             let minTime = dateFormatter.string(from: Date())
             
-            guard let url = URL(string: "\(header)schedules?filter[stop]=\(stop.mbtaStopId)&filter[direction_id]=\(stop.mbtaDirectionId)&filter[route]=\(stop.mbtaRouteId)&filter[min_time]=\(minTime)&sort=time&page[limit]=3") else {
+            let stopFilter = stop.acceptableStopIds.isEmpty ? stop.mbtaStopId : stop.acceptableStopIds.joined(separator: ",")
+            guard let url = URL(string: "\(header)schedules?filter[stop]=\(stopFilter)&filter[direction_id]=\(stop.mbtaDirectionId)&filter[route]=\(stop.mbtaRouteId)&filter[min_time]=\(minTime)&sort=time&page[limit]=3") else {
                 throw MBTAError.networkError
             }
             
