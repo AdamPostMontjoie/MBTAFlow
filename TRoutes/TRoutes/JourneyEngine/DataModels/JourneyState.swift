@@ -205,8 +205,10 @@ struct PredictionState: Equatable, Codable {
                 let text = oldPrediction.display.lowercased()
                 if ["1 min", "1m", "arriving", "arr", "brd", "boarding", "0 min", "stopped"].contains(text) {
                     if let vehicleId = oldPrediction.vehicleId {
-                        print("JourneyEngine: Train \(vehicleId) arrived and dropped off predictions.")
-                        arrivedTrains.append(ArrivedTrain(vehicleId: vehicleId, tripId: tripId, arrivedAt: Date()))
+                        if !arrivedTrains.contains(where: { $0.tripId == tripId }) {
+                            print("JourneyEngine: Train \(vehicleId) arrived and dropped off predictions.")
+                            arrivedTrains.append(ArrivedTrain(vehicleId: vehicleId, tripId: tripId, arrivedAt: Date()))
+                        }
                     }
                 }
             }

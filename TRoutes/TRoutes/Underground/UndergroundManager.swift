@@ -11,6 +11,7 @@ import Foundation
 
 
 @MainActor
+///UGM Sucks, refactor coming soon
 final class UndergroundManager: NSObject, CLLocationManagerDelegate {
     
     static let shared = UndergroundManager()
@@ -151,8 +152,6 @@ final class UndergroundManager: NSObject, CLLocationManagerDelegate {
             latitude: stopLatitude, longitude: stopLongitude
         )
         hasYieldedInitialEntry = false
-        
-        print("UGM setTrackedVehicle vehicle: \(vehicleId ?? "nil") trip: \(tripId ?? "nil") stop: \(acceptableStopIds.first ?? "nil") waitToBoard: \(waitToBoard)")
         await fetchVehicleData()
     }
 
