@@ -20,16 +20,16 @@ struct JourneyCommandValidator {
     ) -> [JourneyEffect] {
         switch command {
         case let .executeEntry(stopId: id):
-            if state.movementStatus == .enRoute && state.currentStop?.mbtaStopId == id {
+            if state.movementStatus == .enRoute && state.currentStop?.acceptableStopIds.contains(id) == true {
                 print("JourneyEngine accepted entry \(id)")
                 return JourneyAction.arriveAtStop.reduce(state: &state)
             } else {
-                print("JourneyEngine ignored entry \(id) current: \(state.currentStop?.mbtaStopId ?? "nil") status: \(state.movementStatus)")
+                print("JourneyEngine ignored entry \(id) current: \(state.currentStop?.mbtaStopId ?? "nil") acceptable: \(state.currentStop?.acceptableStopIds ?? []) status: \(state.movementStatus)")
                 return []
             }
             
         case let .executeExit(stopId: id):
-            if state.movementStatus == .atStop && state.currentStop?.mbtaStopId == id {
+            if state.movementStatus == .atStop && state.currentStop?.acceptableStopIds.contains(id) == true {
                 print("JourneyEngine accepted exit \(id)")
                 
                 var effects: [JourneyEffect] = []
@@ -55,7 +55,7 @@ struct JourneyCommandValidator {
                 
                 return effects
             } else {
-                print("JourneyEngine ignored exit \(id) current: \(state.currentStop?.mbtaStopId ?? "nil") status: \(state.movementStatus)")
+                print("JourneyEngine ignored exit \(id) current: \(state.currentStop?.mbtaStopId ?? "nil") acceptable: \(state.currentStop?.acceptableStopIds ?? []) status: \(state.movementStatus)")
                 return []
             }
             
@@ -65,7 +65,7 @@ struct JourneyCommandValidator {
             effects.append(.sendNotification("Missed vehicle at \(id)", user: "Looks like you missed this train. Recalculating next departure..."))
             effects.append(.resetTrackingState)
             
-            if state.currentStop?.mbtaStopId == id,
+            if state.currentStop?.acceptableStopIds.contains(id) == true,
                state.movementStatus == .atStop,
                let currentStop = state.currentStop {
                 state.pendingDepartureConfirmation = false
@@ -91,14 +91,14 @@ struct JourneyCommandValidator {
             
             //determine to emit updatetrackedvehicle effect
         case let .refreshTimes(stopId: id, isUserInitiated: isUserInitiated):
-            if let currentStop = state.currentStop, currentStop.mbtaStopId == id {
+            if let currentStop = state.currentStop, currentStop.acceptableStopIds.contains(id) {
                 return JourneyAction.evaluatePredictionRefresh.reduce(state: &state, isManual: isUserInitiated)
             }
             return []
             
         case let .confirmDeparture(stopId: id):
             print("JourneyEngine confirmDeparture for \(id)")
-            guard state.currentStop?.mbtaStopId == id,
+            guard state.currentStop?.acceptableStopIds.contains(id) == true,
                   state.movementStatus == .atStop else {
                 return []
             }

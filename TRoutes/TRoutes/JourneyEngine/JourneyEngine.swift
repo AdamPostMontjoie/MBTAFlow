@@ -264,21 +264,25 @@ actor JourneyEngine {
                 await endRoute()
             
             case let .updateTrackedVehicle(vehicleId, tripId):
-                guard let targetPrediction = self.activeJourney?.currentPredictionState, self.activeJourney?.monitoringMode == .underground else {
-                    return
+                guard self.activeJourney?.monitoringMode == .underground else {
+                    continue
                 }
-                print("JourneyEngine set UGM vehicle: \(vehicleId ?? "nil") trip: \(tripId ?? "nil")")
+                guard let targetStop = self.activeJourney?.currentStop else {
+                    continue
+                }
+                let waitToBoard = targetStop.journeyRole == .boarding || targetStop.journeyRole == .transfer(overlapsNext:true)
+                
+                print("JourneyEngine set UGM vehicle: \(vehicleId ?? "nil") trip: \(tripId ?? "nil") stop: \(targetStop.mbtaStopId)")
                 await UndergroundManager.shared.setTrackedVehicle(
                     vehicleId: vehicleId,
                     tripId: tripId,
-                    acceptableStopIds: targetPrediction.predictedStop.acceptableStopIds,
-                    waitToBoard: targetPrediction.predictedStopType == .boarding,
-                    stopLatitude: targetPrediction.predictedStop.latitude,
-                    stopLongitude: targetPrediction.predictedStop.longitude
+                    acceptableStopIds: targetStop.acceptableStopIds,
+                    waitToBoard: waitToBoard,
+                    stopLatitude: targetStop.latitude,
+                    stopLongitude: targetStop.longitude
                 )
                 
             case .resetTrackingState:
-                print("JourneyEngine effect: resetTrackingState")
                 self.trackedVehicleId = nil
                 self.trackedTripId = nil
                 self.matchedPath = nil
