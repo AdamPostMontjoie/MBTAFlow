@@ -16,10 +16,12 @@ struct JourneyPresentationState: Equatable, Codable {
     
     // Predictions
     let activePredictions: [String]
+    let activePredictionsData: [TransitPrediction]
     let activePredictionLoadingState: PredictionLoadingState?
     
     // Transfer Leg Data
     let transferPredictions: [String]?
+    let transferPredictionsData: [TransitPrediction]?
     let transferPredictionLoadingState: PredictionLoadingState?
     let nextLegTransitType: TransitType?
     
@@ -33,8 +35,10 @@ struct JourneyPresentationState: Equatable, Codable {
             self.currentTransitType = nil
             self.isEndOfJourney = false
             self.activePredictions = []
+            self.activePredictionsData = []
             self.activePredictionLoadingState = nil
             self.transferPredictions = nil
+            self.transferPredictionsData = nil
             self.transferPredictionLoadingState = nil
             self.nextLegTransitType = nil
             return
@@ -157,6 +161,7 @@ struct JourneyPresentationState: Equatable, Codable {
         // Predictions
         if let activePrediction = journey.activeLegPrediction {
             self.activePredictionLoadingState = activePrediction.loadingState
+            self.activePredictionsData = activePrediction.lastObservedPredictions
             switch activePrediction.loadingState {
             case let .loaded(_, times):
                 self.activePredictions = times
@@ -168,11 +173,13 @@ struct JourneyPresentationState: Equatable, Codable {
         } else {
             self.activePredictionLoadingState = nil
             self.activePredictions = []
+            self.activePredictionsData = []
         }
         
         // Transfer Predictions and Styling
         if let transferPrediction = journey.transferLegPrediction {
             self.transferPredictionLoadingState = transferPrediction.loadingState
+            self.transferPredictionsData = transferPrediction.lastObservedPredictions
             switch transferPrediction.loadingState {
             case let .loaded(_, times):
                 self.transferPredictions = times
@@ -184,6 +191,7 @@ struct JourneyPresentationState: Equatable, Codable {
         } else {
             self.transferPredictionLoadingState = nil
             self.transferPredictions = nil
+            self.transferPredictionsData = nil
         }
         
         // Next Leg

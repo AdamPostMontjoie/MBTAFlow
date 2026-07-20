@@ -270,7 +270,7 @@ actor JourneyEngine {
                 await UndergroundManager.shared.setTrackedVehicle(
                     vehicleId: vehicleId,
                     tripId: tripId,
-                    boardingStopId: targetPrediction.predictedStop.mbtaStopId,
+                    acceptableStopIds: targetPrediction.predictedStop.acceptableStopIds,
                     waitToBoard: targetPrediction.predictedStopType == .boarding,
                     stopLatitude: targetPrediction.predictedStop.latitude,
                     stopLongitude: targetPrediction.predictedStop.longitude
@@ -325,7 +325,7 @@ actor JourneyEngine {
             await UndergroundManager.shared.setTrackedVehicle(
                 vehicleId: currentJourney.trackedVehicleId,
                 tripId: currentJourney.trackedTripId,
-                boardingStopId: stop.mbtaStopId,
+                acceptableStopIds: stop.acceptableStopIds,
                 waitToBoard: stop.journeyRole == .boarding,
                 stopLatitude: stop.latitude,
                 stopLongitude: stop.longitude

@@ -435,6 +435,10 @@ private func resolveLeg(
     let selectedCandidate = try selectCandidate(validCandidates, leg: leg)
     let allAcceptablePatternIds = validCandidates.map(\.patternId).sorted()
     let allAcceptableRouteIds = Array(Set(validCandidates.compactMap { $0.pattern?.routeId })).sorted()
+    
+    // Group edges by station to find all acceptable sibling platforms for a given station in this direction
+    let siblingPlatformsByStation = Dictionary(grouping: routeDirectionEdges, by: \.stationId)
+        .mapValues { edges in Array(Set(edges.map(\.platformId))) }
 
     let patternStops = try selectedCandidate.patternEdges.enumerated().map { patternStopIndex, edge in
         try makeResolvedPatternStop(
@@ -457,7 +461,8 @@ private func resolveLeg(
             nextLeg: nextLeg,
             platform: platformsById[edge.platformId],
             station: stationsById[edge.stationId],
-            directionId: directionId
+            directionId: directionId,
+            acceptableStopIds: siblingPlatformsByStation[edge.stationId] ?? [edge.platformId]
         )
     }
 
@@ -664,7 +669,8 @@ private func makeResolvedStop(
     nextLeg: Leg?,
     platform: TransitPlatform?,
     station: TransitStation?,
-    directionId: Int
+    directionId: Int,
+    acceptableStopIds: [String]
 ) throws -> ResolvedStop {
     guard let platform else {
         throw ResolvedRouteError.missingPlatform(platformId: edge.platformId)
@@ -700,6 +706,7 @@ private func makeResolvedStop(
         longitude: station.longitude,
         latitude: station.latitude,
         address: station.municipality ?? leg.startStop.address,
+        acceptableStopIds: acceptableStopIds,
         journeyRole: journeyRole,
         monitoringMode: platform.monitoringMode.resolvedMonitoringMode,
         transitType: platform.transitType.resolvedGTFSTransitType,

@@ -70,6 +70,7 @@ struct ActiveJourneyDisplayView: View {
                     predictionTimesBlock(
                         state: state,
                         times: store.presentation.activePredictions,
+                        predictions: store.presentation.activePredictionsData,
                         color: transitColor,
                         iconName: store.presentation.currentTransitType?.iconName,
                         iconColor: transitColor,
@@ -125,6 +126,7 @@ struct ActiveJourneyDisplayView: View {
                         predictionTimesBlock(
                             state: state,
                             times: store.presentation.transferPredictions ?? [],
+                            predictions: store.presentation.transferPredictionsData ?? [],
                             color: .white.opacity(0.2), // Frosted/muted background for the boxes so they don't clash with the solid colored banner
                             iconName: store.presentation.nextLegTransitType?.iconName,
                             iconColor: transferForeground,
@@ -279,12 +281,23 @@ struct ActiveJourneyDisplayView: View {
     }
     
     @ViewBuilder
-    private func timesRow(times: [String], color: Color, foregroundColor: Color, opacity: Double = 1.0) -> some View {
+    private func timesRow(times: [String], predictions: [TransitPrediction] = [], color: Color, foregroundColor: Color, opacity: Double = 1.0) -> some View {
         HStack(spacing: 8) {
             ForEach(Array(times.enumerated()), id: \.offset) { index, time in
+                let prediction = predictions.indices.contains(index) ? predictions[index] : nil
                 let bgStyle: AnyShapeStyle = (color == .white.opacity(0.2)) ? AnyShapeStyle(color) : AnyShapeStyle(color.gradient)
+                let branchLabel = prediction?.branchLabel
                 
                 HStack(spacing: 4) {
+                    if let branchLabel {
+                        Text(branchLabel)
+                            .font(.footnote.weight(.black))
+                            .foregroundStyle(.black)
+                            .frame(width: 20, height: 20)
+                            .background(.white)
+                            .clipShape(Circle())
+                    }
+                    
                     if time.lowercased().contains("stopped") {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.yellow)
@@ -308,7 +321,7 @@ struct ActiveJourneyDisplayView: View {
     }
 
     @ViewBuilder
-    private func predictionTimesBlock(state: PredictionLoadingState?, times: [String], color: Color, iconName: String?, iconColor: Color, foregroundColor: Color) -> some View {
+    private func predictionTimesBlock(state: PredictionLoadingState?, times: [String], predictions: [TransitPrediction], color: Color, iconName: String?, iconColor: Color, foregroundColor: Color) -> some View {
         if let state = state {
             HStack(spacing: 8) {
                 if let iconName = iconName {
@@ -319,7 +332,7 @@ struct ActiveJourneyDisplayView: View {
                 
                 switch state {
                 case .loaded:
-                    timesRow(times: times, color: color, foregroundColor: foregroundColor)
+                    timesRow(times: times, predictions: predictions, color: color, foregroundColor: foregroundColor)
                 case .loading:
                     if times.isEmpty {
                         HStack(spacing: 8) {
@@ -337,7 +350,7 @@ struct ActiveJourneyDisplayView: View {
                                 .controlSize(.small)
                                 .tint(color == .white.opacity(0.2) ? foregroundColor : color)
                             
-                            timesRow(times: times, color: color, foregroundColor: foregroundColor, opacity: 0.5)
+                            timesRow(times: times, predictions: predictions, color: color, foregroundColor: foregroundColor, opacity: 0.5)
                         }
                     }
                 case let .unavailable(_, message):
