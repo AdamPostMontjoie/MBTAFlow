@@ -436,9 +436,12 @@ private func resolveLeg(
     let allAcceptablePatternIds = validCandidates.map(\.patternId).sorted()
     let allAcceptableRouteIds = Array(Set(validCandidates.compactMap { $0.pattern?.routeId })).sorted()
     
-    // Group edges by station to find all acceptable sibling platforms for a given station in this direction
-    let siblingPlatformsByStation = Dictionary(grouping: routeDirectionEdges, by: \.stationId)
-        .mapValues { edges in Array(Set(edges.map(\.platformId))) }
+    // Group ALL platforms in the system by their parent station ID.
+    // This allows acceptableStopIds to contain every platform at a station, 
+    // ensuring we don't miss an arrival if a vehicle pulls into a sibling platform
+    // or an unexpected branch platform.
+    let siblingPlatformsByStation = Dictionary(grouping: allPlatforms, by: \.stationId)
+        .mapValues { platforms in Array(Set(platforms.map(\.platformId))) }
 
     let patternStops = try selectedCandidate.patternEdges.enumerated().map { patternStopIndex, edge in
         try makeResolvedPatternStop(
@@ -450,7 +453,14 @@ private func resolveLeg(
     }
 
     let stops = try selectedCandidate.edges.enumerated().map { stopIndex, edge in
-        try makeResolvedStop(
+        var acceptable = siblingPlatformsByStation[edge.stationId] ?? [edge.platformId]
+        if let idx = acceptable.firstIndex(of: edge.platformId) {
+            acceptable.swapAt(0, idx)
+        } else {
+            acceptable.insert(edge.platformId, at: 0)
+        }
+        
+        return try makeResolvedStop(
             edge: edge,
             leg: leg,
             legIndex: legIndex,
@@ -462,7 +472,7 @@ private func resolveLeg(
             platform: platformsById[edge.platformId],
             station: stationsById[edge.stationId],
             directionId: directionId,
-            acceptableStopIds: siblingPlatformsByStation[edge.stationId] ?? [edge.platformId]
+            acceptableStopIds: acceptable
         )
     }
 

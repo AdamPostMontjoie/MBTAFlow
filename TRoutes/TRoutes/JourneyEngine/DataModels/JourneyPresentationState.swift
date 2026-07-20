@@ -15,13 +15,11 @@ struct JourneyPresentationState: Equatable, Codable {
     let isEndOfJourney: Bool
     
     // Predictions
-    let activePredictions: [String]
-    let activePredictionsData: [TransitPrediction]
+    let activePredictions: [JourneyAttributes.PredictionDisplay]
     let activePredictionLoadingState: PredictionLoadingState?
     
     // Transfer Leg Data
-    let transferPredictions: [String]?
-    let transferPredictionsData: [TransitPrediction]?
+    let transferPredictions: [JourneyAttributes.PredictionDisplay]?
     let transferPredictionLoadingState: PredictionLoadingState?
     let nextLegTransitType: TransitType?
     
@@ -35,10 +33,8 @@ struct JourneyPresentationState: Equatable, Codable {
             self.currentTransitType = nil
             self.isEndOfJourney = false
             self.activePredictions = []
-            self.activePredictionsData = []
             self.activePredictionLoadingState = nil
             self.transferPredictions = nil
-            self.transferPredictionsData = nil
             self.transferPredictionLoadingState = nil
             self.nextLegTransitType = nil
             return
@@ -103,30 +99,32 @@ struct JourneyPresentationState: Equatable, Codable {
             let legTotalStops = currentLeg.stops.count
             let legCurrentIndex = journey.currentStop?.legStopIndex ?? 0
             
-            let stopsRemainingInLeg = journey.movementStatus == .atStop
+            // Includes destination in the count (industry standard)
+            let stopsLeft = journey.movementStatus == .atStop
                 ? max(0, legTotalStops - 1 - legCurrentIndex)
                 : max(0, legTotalStops - legCurrentIndex)
                 
-            let stopsText = stopsRemainingInLeg == 1 ? "1 stop" : "\(stopsRemainingInLeg) stops"
             let isTransferLeg = journey.legIndex < journey.legOrder.count - 1
             
             if isTransferLeg {
-                if stopsRemainingInLeg == 1 && journey.movementStatus == .atStop {
-                    self.destinationContext = "Last stop before \(legFinalStop.stopName)"
-                } else if stopsRemainingInLeg == 1 && journey.movementStatus == .enRoute {
+                if stopsLeft <= 1 && journey.movementStatus == .atStop {
+                    self.destinationContext = "Transfer at \(legFinalStop.stopName)"
+                } else if stopsLeft == 1 && journey.movementStatus == .enRoute {
                     self.destinationContext = "Transfer at next stop"
-                } else if stopsRemainingInLeg == 0 {
+                } else if stopsLeft == 0 {
                     self.destinationContext = nil
                 } else {
-                    self.destinationContext = "\(stopsText) to \(legFinalStop.stopName)"
+                    let stopsText = stopsLeft == 1 ? "1 stop" : "\(stopsLeft) stops"
+                    self.destinationContext = "\(stopsText) left"
                 }
             } else {
-                if stopsRemainingInLeg == 1 && journey.movementStatus == .enRoute {
+                if stopsLeft == 1 && journey.movementStatus == .enRoute {
                     self.destinationContext = "Get off at next stop"
-                } else if stopsRemainingInLeg == 0 {
+                } else if stopsLeft == 0 {
                     self.destinationContext = nil
                 } else {
-                    self.destinationContext = "\(stopsText) to \(legFinalStop.stopName)"
+                    let stopsText = stopsLeft == 1 ? "1 stop" : "\(stopsLeft) stops"
+                    self.destinationContext = "\(stopsText) left"
                 }
             }
         } else {
@@ -161,37 +159,41 @@ struct JourneyPresentationState: Equatable, Codable {
         // Predictions
         if let activePrediction = journey.activeLegPrediction {
             self.activePredictionLoadingState = activePrediction.loadingState
-            self.activePredictionsData = activePrediction.lastObservedPredictions
             switch activePrediction.loadingState {
             case let .loaded(_, times):
-                self.activePredictions = times
+                self.activePredictions = zip(times, activePrediction.lastObservedPredictions).map {
+                    JourneyAttributes.PredictionDisplay(time: $0.0, badge: $0.1.branchLabel)
+                }
             case .loading:
-                self.activePredictions = activePrediction.lastObservedPredictions.map(\.display)
+                self.activePredictions = activePrediction.lastObservedPredictions.map {
+                    JourneyAttributes.PredictionDisplay(time: $0.display, badge: $0.branchLabel)
+                }
             case .unavailable:
                 self.activePredictions = []
             }
         } else {
             self.activePredictionLoadingState = nil
             self.activePredictions = []
-            self.activePredictionsData = []
         }
         
         // Transfer Predictions and Styling
         if let transferPrediction = journey.transferLegPrediction {
             self.transferPredictionLoadingState = transferPrediction.loadingState
-            self.transferPredictionsData = transferPrediction.lastObservedPredictions
             switch transferPrediction.loadingState {
             case let .loaded(_, times):
-                self.transferPredictions = times
+                self.transferPredictions = zip(times, transferPrediction.lastObservedPredictions).map {
+                    JourneyAttributes.PredictionDisplay(time: $0.0, badge: $0.1.branchLabel)
+                }
             case .loading:
-                self.transferPredictions = transferPrediction.lastObservedPredictions.map(\.display)
+                self.transferPredictions = transferPrediction.lastObservedPredictions.map {
+                    JourneyAttributes.PredictionDisplay(time: $0.display, badge: $0.branchLabel)
+                }
             case .unavailable:
                 self.transferPredictions = []
             }
         } else {
             self.transferPredictionLoadingState = nil
             self.transferPredictions = nil
-            self.transferPredictionsData = nil
         }
         
         // Next Leg
